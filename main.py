@@ -21,10 +21,9 @@ for card in cards:
     if card['id'] not in unavailable_cards_id:
         available_cards.append(card)
 
-
-for card in get_random_deck(available_cards):
+deck = get_random_deck(available_cards)
+for card in deck:
     print(card['name'])
-
 #print(len(cards))
 #print(len(available_cards))
 
