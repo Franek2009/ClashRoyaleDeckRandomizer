@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clash Royale Deck Randomizer</title>
+</head>
+
+<body>
+    <h1>Clash Royale Deck Randomizer</h1>
+
+    <p>Wylosuj swój deck!</p>
+
+    <form action="/generate" method="post">
+        <button type="submit">Generate Deck</button>
+    </form>
+
+    {% if deck %}
+        <h2>Your deck:</h2>
+
+        {% for card in deck %}
+            <p>{{ card["name"] }}</p>
+        {% endfor %}
+    {% endif %}
+
+</body>
+</html>
