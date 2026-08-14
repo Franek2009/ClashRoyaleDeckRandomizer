@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Clash Royale Deck Randomizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
+
     <h1>Clash Royale Deck Randomizer</h1>
 
     <p>Wylosuj swój deck!</p>
@@ -16,10 +19,16 @@
     {% if deck %}
         <h2>Your deck:</h2>
 
-        {% for card in deck %}
-            <p>{{ card["name"] }}</p>
-        {% endfor %}
+        <div class="deck">
+            {% for card in deck %}
+                <div class="card">
+                    <img src="{{ card['iconUrls']['medium'] }}">
+                    <p>{{ card["name"] }}</p>
+                </div>
+            {% endfor %}
+        </div>
     {% endif %}
 
 </body>
+
 </html>
