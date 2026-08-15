@@ -1,33 +1,80 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Clash Royale Deck Randomizer</title>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
-    <h1>Clash Royale Deck Randomizer</h1>
+    <main class="container">
 
-    <p>Wylosuj swój deck!</p>
+        <header class="header">
+            <h1>Clash Royale Deck Randomizer</h1>
+            <p>Randomize your deck and start playing!</p>
 
-    <form action="/generate" method="post">
-        <button type="submit">Generate Deck</button>
-    </form>
+            <form action="/generate" method="post">
+                <button type="submit" class="generate-button">
+                    Generate Deck
+                </button>
+            </form>
+        </header>
 
-    {% if deck %}
-        <h2>Your deck:</h2>
 
-        <div class="deck">
-            {% for card in deck %}
-                <div class="card">
-                    <img src="{{ card['iconUrls']['medium'] }}">
-                    <p>{{ card["name"] }}</p>
+        {% if deck %}
+
+            <section class="deck-section">
+
+                <h2>Your Deck</h2>
+
+                <div class="deck">
+
+                    {% for card in deck %}
+
+                        <article class="card">
+
+                            <div class="card-image">
+                                <img
+                                    src="{{ card['iconUrls']['medium'] }}"
+                                    alt="{{ card['name'] }}"
+                                >
+                            </div>
+
+                            <div class="card-info">
+
+                                <h3>{{ card['name'] }}</h3>
+
+                                <div class="card-details">
+
+                                    <span class="rarity">
+                                        {{ card['rarity'] }}
+                                    </span>
+
+                                    <span class="elixir">
+                                        <span class="elixir-icon"></span>
+                                        {{ card['elixirCost'] }}
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </article>
+
+                    {% endfor %}
+
                 </div>
-            {% endfor %}
-        </div>
-    {% endif %}
+
+            </section>
+
+        {% endif %}
+
+    </main>
 
 </body>
 

@@ -1,99 +1,235 @@
+* {
+    box-sizing: border-box;
+}
+
 body {
+    margin: 0;
+    min-height: 100vh;
+
     font-family: Arial, sans-serif;
-    max-width: 1000px;
+
+    background: #111827;
+    color: #f9fafb;
+}
+
+.container {
+    width: min(1100px, 92%);
     margin: 0 auto;
-    padding: 40px 20px;
+    padding: 40px 0;
+}
+
+/* Header */
+
+.header {
     text-align: center;
-
-    background: #f5f5f5;
-    color: #222;
+    margin-bottom: 40px;
 }
 
-h1 {
-    font-size: 42px;
-    margin-bottom: 10px;
+.header h1 {
+    margin: 0 0 10px;
+    font-size: 2.4rem;
 }
 
-p {
-    font-size: 18px;
+.header p {
+    margin: 0 0 25px;
+    color: #cbd5e1;
 }
+
 
 /* Generate button */
 
-button {
-    font-size: 22px;
+.generate-button {
+    border: none;
+    border-radius: 10px;
+
+    padding: 12px 28px;
+
+    font-size: 1rem;
     font-weight: bold;
 
-    padding: 16px 40px;
-    margin: 20px 0 40px;
-
-    border: none;
-    border-radius: 12px;
+    color: white;
+    background: #7c3aed;
 
     cursor: pointer;
+
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease;
 }
+
+.generate-button:hover {
+    background: #8b5cf6;
+    transform: translateY(-2px);
+}
+
+.generate-button:active {
+    transform: translateY(0);
+}
+
 
 /* Deck */
 
+.deck-section h2 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
 .deck {
     display: grid;
+
     grid-template-columns: repeat(4, 1fr);
+
     gap: 20px;
 }
+
 
 /* Card */
 
 .card {
-    padding: 15px;
+    overflow: hidden;
 
-    border-radius: 16px;
+    border-radius: 14px;
 
-    background: white;
+    background: #1f2937;
 
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.25);
 
-    transition: transform 0.15s;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
 .card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-5px);
+
+    box-shadow:
+        0 12px 25px rgba(0, 0, 0, 0.35);
 }
 
-.card img {
-    width: 150px;
+
+/* Card image */
+
+.card-image {
+    width: 100%;
+
+    background: #374151;
+}
+
+.card-image img {
+    display: block;
+
+    width: 100%;
     height: auto;
 }
 
-.card p {
+
+/* Card information */
+
+.card-info {
+    padding: 12px 14px;
+}
+
+.card-info h3 {
+    margin: 0 0 10px;
+
+    font-size: 1.05rem;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* Rarity + elixir */
+
+.card-details {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    color: #cbd5e1;
+}
+
+.rarity {
+    text-transform: capitalize;
+
+    font-size: 0.9rem;
+}
+
+.elixir {
+    display: flex;
+
+    align-items: center;
+
+    gap: 5px;
+
     font-weight: bold;
-    margin: 10px 0 0;
 }
 
-/* Dark mode */
 
-@media (prefers-color-scheme: dark) {
-    body {
-        background: #181818;
-        color: #f5f5f5;
-    }
+/* Custom elixir icon */
 
-    .card {
-        background: #242424;
-    }
+.elixir-icon {
+    position: relative;
+
+    display: inline-block;
+
+    width: 13px;
+    height: 17px;
+
+    background: #c084fc;
+
+    border-radius: 50% 50% 55% 55%;
+
+    transform: rotate(45deg);
+
+    box-shadow:
+        0 0 5px rgba(192, 132, 252, 0.6);
 }
+
 
 /* Mobile */
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
+
     .deck {
         grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
     }
 
-    h1 {
-        font-size: 32px;
+    .container {
+        width: 94%;
+        padding: 25px 0;
     }
 
-    .card img {
-        width: 120px;
+    .header h1 {
+        font-size: 1.8rem;
+    }
+}
+
+
+/* Very small screens */
+
+@media (max-width: 400px) {
+
+    .deck {
+        gap: 10px;
+    }
+
+    .card-info {
+        padding: 9px 10px;
+    }
+
+    .card-info h3 {
+        font-size: 0.9rem;
+    }
+
+    .rarity,
+    .elixir {
+        font-size: 0.8rem;
     }
 }
