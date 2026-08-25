@@ -1,5 +1,5 @@
 def generate_deck_link(deck):
-    card_ids = [str(card["id"]) for card in deck]
+    card_ids = [str(slot["card"]["id"]) for slot in deck]
 
     deck_string = ";".join(card_ids)
 

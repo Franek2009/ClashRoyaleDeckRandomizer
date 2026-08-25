@@ -34,30 +34,34 @@
 
                 <div class="deck">
 
-                    {% for card in deck %}
+                    {% for slot in deck %}
 
                         <article class="card">
 
                             <div class="card-image">
                                 <img
-                                    src="{{ card['iconUrls']['medium'] }}"
-                                    alt="{{ card['name'] }}"
+                                    src="{% if slot['is_evolution'] %}
+                                        {{ slot['card']['iconUrls']['evolutionMedium'] }}
+                                    {% else %}
+                                        {{ slot['card']['iconUrls']['medium'] }}
+                                    {% endif %}"
+                                    alt="{{ slot['card']['name'] }}"
                                 >
                             </div>
 
                             <div class="card-info">
 
-                                <h3>{{ card['name'] }}</h3>
+                                <h3>{{ slot['card']['name'] }}</h3>
 
                                 <div class="card-details">
 
                                     <span class="rarity">
-                                        {{ card['rarity'] }}
+                                        {{ slot['card']['rarity'] }}
                                     </span>
 
                                     <span class="elixir">
                                         <span class="elixir-icon"></span>
-                                        {{ card['elixirCost'] }}
+                                        {{ slot['card']['elixirCost'] }}
                                     </span>
 
                                 </div>

@@ -60,18 +60,54 @@ def arrange_deck(deck):
 
     arranged_deck = []
 
+    # Slot 1: EVO
     if evolution_cards:
-        arranged_deck.append(evolution_cards.pop())
+        arranged_deck.append({
+            "card": evolution_cards.pop(),
+            "is_evolution": True
+        })
 
+    # Slot 2: Champion albo zwykła karta
     if champion_cards:
-        arranged_deck.append(champion_cards.pop())
+        arranged_deck.append({
+            "card": champion_cards.pop(),
+            "is_evolution": False
+        })
+    else:
+        if normal_cards:
+            card = normal_cards.pop()
+        else:
+            card = evolution_cards.pop()
 
+        arranged_deck.append({
+            "card": card,
+            "is_evolution": False
+        })
+
+    # Slot 3: Champion albo EVO albo zwykła karta
     if champion_cards:
-        arranged_deck.append(champion_cards.pop())
+        arranged_deck.append({
+            "card": champion_cards.pop(),
+            "is_evolution": False
+        })
     elif evolution_cards:
-        arranged_deck.append(evolution_cards.pop())
+        arranged_deck.append({
+            "card": evolution_cards.pop(),
+            "is_evolution": True
+        })
+    else:
+        arranged_deck.append({
+            "card": normal_cards.pop(),
+            "is_evolution": False
+        })
 
-    arranged_deck.extend(evolution_cards)
-    arranged_deck.extend(normal_cards)
+    # Reszta kart
+    remaining_cards = evolution_cards + normal_cards
+
+    for card in remaining_cards:
+        arranged_deck.append({
+            "card": card,
+            "is_evolution": False
+        })
 
     return arranged_deck
