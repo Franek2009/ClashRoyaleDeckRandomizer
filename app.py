@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 import json
 
-from randomizer import get_random_deck
+from randomizer import get_random_deck, arrange_deck
 from deck_link import generate_deck_link
 
 
@@ -21,7 +21,7 @@ def generate():
     cards = cards["items"]
 
     deck = get_random_deck(cards)
-
+    deck = arrange_deck(deck)
     deck_link = generate_deck_link(deck)
 
     return render_template(
