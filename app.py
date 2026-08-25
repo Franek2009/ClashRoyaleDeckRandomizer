@@ -1,6 +1,8 @@
 from flask import Flask, render_template
 import json
+
 from randomizer import get_random_deck
+from deck_link import generate_deck_link
 
 
 app = Flask(__name__)
@@ -20,7 +22,13 @@ def generate():
 
     deck = get_random_deck(cards)
 
-    return render_template("index.html", deck=deck)
+    deck_link = generate_deck_link(deck)
+
+    return render_template(
+        "index.html",
+        deck=deck,
+        deck_link=deck_link
+    )
 
 
 if __name__ == "__main__":

@@ -233,3 +233,28 @@ body {
         font-size: 0.8rem;
     }
 }
+
+.open-game-button {
+    display: block;
+    width: fit-content;
+
+    margin: 30px auto 0;
+    padding: 12px 24px;
+
+    border-radius: 10px;
+
+    background: #16a34a;
+    color: white;
+
+    font-weight: bold;
+    text-decoration: none;
+
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease;
+}
+
+.open-game-button:hover {
+    background: #22c55e;
+    transform: translateY(-2px);
+}
