@@ -98,8 +98,8 @@ Open <http://127.0.0.1:5000> and select **Generate Deck**. The generated
 **Open in Clash Royale** link contains the eight card IDs in the same order as
 the displayed deck slots.
 
-The development server is intended only for local use. Production server and
-deployment configuration will be added in a later project stage.
+The development server is intended only for local use. The application has not
+yet been deployed publicly.
 
 ### Production-like local run
 
@@ -156,6 +156,7 @@ ClashRoyaleDeckRandomizer/
 ├── main.py
 ├── randomizer.py
 ├── pytest.ini
+├── render.yaml
 ├── requirements-dev.txt
 ├── requirements.txt
 ├── LICENSE
@@ -179,6 +180,16 @@ HTTP requests and template rendering, while `deck_link.py` only converts the
 arranged slot sequence into the game link. No external API is called while a
 deck is generated.
 
+## Deployment
+
+The repository is prepared for deployment as a Render Web Service. The
+Blueprint configuration in `render.yaml` installs `requirements.txt`, starts
+the application with Gunicorn, and uses `/health` for health checks.
+
+Automatic deploys are configured to start only after the linked GitHub checks
+pass. The public application URL will be added here only after the first deploy
+has been completed and verified in Render.
+
 ## Current limitations
 
 - `cards.json` is a local snapshot and can become outdated as the game changes.
@@ -186,16 +197,15 @@ deck is generated.
 - The random seed and generated decks are not persisted between requests.
 - Card artwork is referenced through external URLs stored in `cards.json` and
   therefore requires network access in the browser.
-- The application currently uses Flask's development server and has not yet
-  been deployed publicly.
+- The application has not yet been deployed publicly.
 - No application screenshot is currently included in the repository.
 
 ## Project status
 
 The core deck generation, slot arrangement, web interface, automated tests, and
-GitHub Actions CI are working. Production serving and deployment have not yet
-been completed. The repository is being prepared for its first `v1.0.0`
-release.
+GitHub Actions CI are working. Production serving and Render configuration are
+prepared, but the first public deployment has not yet been performed. The
+repository is being prepared for its first `v1.0.0` release.
 
 ## License
 
