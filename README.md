@@ -4,6 +4,10 @@ A small Flask application that generates random eight-card Clash Royale decks,
 arranges Champions and Evolutions according to custom slot rules, and creates a
 link for opening the resulting deck in Clash Royale.
 
+## Live Demo
+
+[Open Clash Royale Deck Randomizer](https://clash-royale-deck-randomizer.onrender.com/)
+
 ## Features
 
 - Generates decks containing exactly eight unique cards.
@@ -19,8 +23,7 @@ link for opening the resulting deck in Clash Royale.
 
 ## Screenshot
 
-A screenshot is not included yet. It should be captured manually from the
-running application and added to the repository later.
+![Clash Royale Deck Randomizer](docs/screenshot.png)
 
 ## Deck rules
 
@@ -98,8 +101,8 @@ Open <http://127.0.0.1:5000> and select **Generate Deck**. The generated
 **Open in Clash Royale** link contains the eight card IDs in the same order as
 the displayed deck slots.
 
-The development server is intended only for local use. The application has not
-yet been deployed publicly.
+The development server is intended only for local use. Render is not required
+to install or run the project locally.
 
 ### Production-like local run
 
@@ -143,6 +146,8 @@ GitHub Actions runs the same test command for every push and pull request to
 ```text
 ClashRoyaleDeckRandomizer/
 ├── .github/workflows/ci.yml
+├── docs/
+│   └── screenshot.png
 ├── static/
 │   └── style.css
 ├── templates/
@@ -182,13 +187,18 @@ deck is generated.
 
 ## Deployment
 
-The repository is prepared for deployment as a Render Web Service. The
-Blueprint configuration in `render.yaml` installs `requirements.txt`, starts
-the application with Gunicorn, and uses `/health` for health checks.
+The application is publicly deployed as a Render Web Service at the URL in
+[Live Demo](#live-demo). The Blueprint in `render.yaml` defines the service,
+installs `requirements.txt`, starts the application with Gunicorn, and uses
+`/health` for health checks.
 
-Automatic deploys are configured to start only after the linked GitHub checks
-pass. The public application URL will be added here only after the first deploy
-has been completed and verified in Render.
+GitHub Actions runs the pytest suite for pushes and pull requests to `main`.
+Render is configured to start automatic deploys only after the linked GitHub
+checks pass.
+
+The service currently uses Render's Free plan. Free web services spin down
+after periods without inbound traffic, so the first visit after inactivity can
+take longer while the service starts again.
 
 ## Current limitations
 
@@ -197,15 +207,13 @@ has been completed and verified in Render.
 - The random seed and generated decks are not persisted between requests.
 - Card artwork is referenced through external URLs stored in `cards.json` and
   therefore requires network access in the browser.
-- The application has not yet been deployed publicly.
-- No application screenshot is currently included in the repository.
 
 ## Project status
 
 The core deck generation, slot arrangement, web interface, automated tests, and
-GitHub Actions CI are working. Production serving and Render configuration are
-prepared, but the first public deployment has not yet been performed. The
-repository is being prepared for its first `v1.0.0` release.
+GitHub Actions CI are working. Production serving, the Render deployment,
+health monitoring, and project documentation are complete. The project is ready
+for its first stable `v1.0.0` release after final validation.
 
 ## License
 
