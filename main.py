@@ -1,11 +1,10 @@
 import json
+
 from randomizer import get_random_deck
 
-with open("cards.json", "r") as file:
-    cards = json.load(file)
-
-cards = cards['items']
+with open("cards.json", encoding="utf-8") as file:
+    cards = json.load(file)["items"]
 
 deck = get_random_deck(cards)
-for i, card in enumerate(deck, 1):
-    print(f"{i}. {card['name']}")
+for position, card in enumerate(deck, start=1):
+    print(f"{position}. {card['name']}")

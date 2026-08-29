@@ -9,35 +9,24 @@ def is_champion(card):
     return card.get("rarity") == "champion"
 
 
-def get_random_deck(loadCards):
-    champion_count = 0
+def get_random_deck(cards):
     chosen_cards = []
-    evolution_cards = []
-    remaining_cards = []
-
-    for card in loadCards:
-        if has_evolution(card):
-            evolution_cards.append(card)
+    evolution_cards = [card for card in cards if has_evolution(card)]
 
     chosen_cards.extend(random.sample(evolution_cards, 2))
 
-    for card in chosen_cards:
-        if is_champion(card):
-            champion_count += 1
-
-    for card in loadCards:
-        if card not in chosen_cards:
-            remaining_cards.append(card)
+    champion_count = sum(is_champion(card) for card in chosen_cards)
+    remaining_cards = [card for card in cards if card not in chosen_cards]
 
     while len(chosen_cards) < 8:
         card = random.choice(remaining_cards)
 
-        if card["rarity"] == "champion" and champion_count >= 2:
+        if is_champion(card) and champion_count >= 2:
             continue
 
         chosen_cards.append(card)
 
-        if card["rarity"] == "champion":
+        if is_champion(card):
             champion_count += 1
 
         remaining_cards.remove(card)
@@ -62,52 +51,41 @@ def arrange_deck(deck):
 
     # Slot 1: EVO
     if evolution_cards:
-        arranged_deck.append({
-            "card": evolution_cards.pop(),
-            "is_evolution": True
-        })
+        arranged_deck.append(
+            {"card": evolution_cards.pop(), "is_evolution": True}
+        )
 
     # Slot 2: Champion albo zwykła karta
     if champion_cards:
-        arranged_deck.append({
-            "card": champion_cards.pop(),
-            "is_evolution": False
-        })
+        arranged_deck.append(
+            {"card": champion_cards.pop(), "is_evolution": False}
+        )
     else:
         if normal_cards:
             card = normal_cards.pop()
         else:
             card = evolution_cards.pop()
 
-        arranged_deck.append({
-            "card": card,
-            "is_evolution": False
-        })
+        arranged_deck.append({"card": card, "is_evolution": False})
 
     # Slot 3: Champion albo EVO albo zwykła karta
     if champion_cards:
-        arranged_deck.append({
-            "card": champion_cards.pop(),
-            "is_evolution": False
-        })
+        arranged_deck.append(
+            {"card": champion_cards.pop(), "is_evolution": False}
+        )
     elif evolution_cards:
-        arranged_deck.append({
-            "card": evolution_cards.pop(),
-            "is_evolution": True
-        })
+        arranged_deck.append(
+            {"card": evolution_cards.pop(), "is_evolution": True}
+        )
     else:
-        arranged_deck.append({
-            "card": normal_cards.pop(),
-            "is_evolution": False
-        })
+        arranged_deck.append(
+            {"card": normal_cards.pop(), "is_evolution": False}
+        )
 
     # Reszta kart
     remaining_cards = evolution_cards + normal_cards
 
     for card in remaining_cards:
-        arranged_deck.append({
-            "card": card,
-            "is_evolution": False
-        })
+        arranged_deck.append({"card": card, "is_evolution": False})
 
     return arranged_deck

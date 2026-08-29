@@ -1,8 +1,9 @@
-from flask import Flask, render_template
 import json
 
-from randomizer import get_random_deck, arrange_deck
+from flask import Flask, render_template
+
 from deck_link import generate_deck_link
+from randomizer import arrange_deck, get_random_deck
 
 
 app = Flask(__name__)
@@ -15,19 +16,17 @@ def home():
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    with open("cards.json", "r") as file:
-        cards = json.load(file)
+    with open("cards.json", encoding="utf-8") as file:
+        cards = json.load(file)["items"]
 
-    cards = cards["items"]
-
-    deck = get_random_deck(cards)
-    deck = arrange_deck(deck)
-    deck_link = generate_deck_link(deck)
+    random_deck = get_random_deck(cards)
+    arranged_deck = arrange_deck(random_deck)
+    deck_link = generate_deck_link(arranged_deck)
 
     return render_template(
         "index.html",
-        deck=deck,
-        deck_link=deck_link
+        deck=arranged_deck,
+        deck_link=deck_link,
     )
 
 
