@@ -86,6 +86,8 @@ pip install -r requirements-dev.txt
 
 ## Running
 
+### Development
+
 Start the application locally with Flask's development server:
 
 ```bash
@@ -98,6 +100,21 @@ the displayed deck slots.
 
 The development server is intended only for local use. Production server and
 deployment configuration will be added in a later project stage.
+
+### Production-like local run
+
+Run the application locally with Gunicorn using the existing Flask application
+object:
+
+```bash
+gunicorn app:app
+```
+
+The lightweight `GET /health` endpoint returns the application's health status
+for hosting and monitoring checks without loading card data or generating a
+deck.
+
+### Command-line demo
 
 For a simple command-line demonstration that prints a random deck, run:
 

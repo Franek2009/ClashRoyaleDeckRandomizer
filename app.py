@@ -14,6 +14,11 @@ def home():
     return render_template("index.html")
 
 
+@app.route("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.route("/generate", methods=["POST"])
 def generate():
     with open("cards.json", encoding="utf-8") as file:
