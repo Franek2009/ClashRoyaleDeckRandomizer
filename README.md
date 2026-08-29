@@ -203,7 +203,7 @@ Stylesheet used by the web interface.
 ## Requirements
 
 * Python 3
-* Flask
+* pip
 
 ## Installation
 
@@ -231,10 +231,10 @@ Activate it:
 source .venv/bin/activate
 ```
 
-Install Flask:
+Install the production and development dependencies:
 
 ```bash
-pip install flask
+pip install -r requirements-dev.txt
 ```
 
 ## Running the Application
