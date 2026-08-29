@@ -1,336 +1,202 @@
 # Clash Royale Deck Randomizer
 
-A Python-based Clash Royale deck randomizer with a Flask web interface.
-
-The application generates random 8-card Clash Royale decks, applies custom deck-slot rules for Champions and Evolutions, displays the generated deck in a web interface, and creates a link that can be used to open the deck directly in Clash Royale.
+A small Flask application that generates random eight-card Clash Royale decks,
+arranges Champions and Evolutions according to custom slot rules, and creates a
+link for opening the resulting deck in Clash Royale.
 
 ## Features
 
-- Generates random 8-card decks.
-- Prevents duplicate cards.
-- Supports Champions.
-- Supports Evolution-capable cards.
-- Applies custom deck-slot rules.
-- Gives Champions priority over Evolutions when assigning slot 3.
-- Displays Evolution artwork only when a card occupies an Evolution slot.
-- Displays card names, rarities and Elixir costs.
-- Generates Clash Royale deck links.
-- Includes automated tests for deck generation and deck arrangement.
-- Uses card data stored locally in `cards.json`.
+- Generates decks containing exactly eight unique cards.
+- Limits each generated deck to at most two Champions.
+- Activates Evolutions only in slots 1 and 3.
+- Places Champions only in slots 2 and 3.
+- Gives Champions priority over Evolutions in slot 3.
+- Displays card artwork, rarity, and Elixir cost in a Flask web interface.
+- Builds Clash Royale deck links from card IDs in their final slot order.
+- Uses card information stored locally in `cards.json`.
+- Includes deterministic pytest coverage and an additional randomized stress test.
+- Runs the test suite automatically with GitHub Actions.
 
-## Deck Rules
+## Screenshot
 
-The randomizer generates a deck containing exactly 8 unique cards.
+A screenshot is not included yet. It should be captured manually from the
+running application and added to the repository later.
 
-### Evolution Rules
+## Deck rules
 
-Evolution-capable cards can use the following slots:
+An Evolution-capable card has an active Evolution only when it is assigned to
+slot 1 or slot 3. Slot 2 is never an active Evolution slot. A card that supports
+Evolution can still appear as a normal card in any remaining slot.
 
-- Slot 1
-- Slot 3
-
-Slot 2 can never contain an Evolution.
-
-A card having an available Evolution does not automatically mean that its Evolution is active. The Evolution is active only when the card is assigned to an Evolution slot.
-
-### Champion Rules
-
-Champions can occupy:
-
-- Slot 2
-- Slot 3
-
-A deck can contain a maximum of 2 Champions.
-
-### Slot Priority
-
-Champions have priority over Evolutions when assigning slot 3.
-
-The intended slot order is:
+Champions can occupy only slots 2 and 3, and a deck can contain no more than two
+Champions. When both a Champion and an Evolution-capable card are available for
+slot 3, the Champion takes priority.
 
 | Slot | Priority |
-|------|----------|
+| --- | --- |
 | 1 | Evolution |
-| 2 | Champion |
-| 3 | Champion → Evolution |
-| 4–8 | Remaining cards |
+| 2 | Champion, otherwise a normal card |
+| 3 | Champion, then Evolution, then a normal card |
+| 4–8 | Remaining cards with no active Evolution |
 
-For example, a deck containing two Champions and two Evolution-capable cards can be arranged as:
-
-```text
-Slot 1 → Evolution
-Slot 2 → Champion
-Slot 3 → Champion
-Slot 4 → Normal card
-Slot 5 → Normal card
-Slot 6 → Normal card
-Slot 7 → Normal card
-Slot 8 → Normal card
-````
-
-In this case, only one Evolution is active.
-
-With one Champion and two Evolution-capable cards:
+With two Champions and two Evolution-capable cards, the resulting arrangement
+can be:
 
 ```text
-Slot 1 → Evolution
-Slot 2 → Champion
-Slot 3 → Evolution
-Slot 4 → Normal card
-Slot 5 → Normal card
-Slot 6 → Normal card
-Slot 7 → Normal card
-Slot 8 → Normal card
+Slot 1 -> Evolution
+Slot 2 -> Champion
+Slot 3 -> Champion
+Slot 4 -> Evolution-capable card used normally
+Slot 5 -> Normal card
+Slot 6 -> Normal card
+Slot 7 -> Normal card
+Slot 8 -> Normal card
 ```
-
-Both Evolutions are active.
-
-## Web Interface
-
-The application provides a simple Flask web interface.
-
-The user can:
-
-1. Open the application.
-2. Click **Generate Deck**.
-3. View the generated deck.
-4. See the correct artwork for each card.
-5. See card rarity and Elixir cost.
-6. Open the generated deck directly in Clash Royale.
-
-## Clash Royale Deck Links
-
-After generating and arranging a deck, the application creates a Clash Royale deck link using the IDs of the cards in their final slot order.
-
-The generated link can be opened using the **Open in Clash Royale** button.
-
-## Card Data
-
-Card information is stored in:
-
-```text
-cards.json
-```
-
-The database contains information such as:
-
-* card name,
-* card ID,
-* rarity,
-* Elixir cost,
-* regular card artwork,
-* Evolution artwork.
-
-Evolution availability is detected by checking for the `evolutionMedium` entry in the card's `iconUrls` data.
-
-For example:
-
-```json
-{
-    "iconUrls": {
-        "medium": "...",
-        "evolutionMedium": "..."
-    }
-}
-```
-
-## Project Structure
-
-```text
-ClashRoyaleDeckRandomizer/
-├── app.py
-├── main.py
-├── randomizer.py
-├── deck_link.py
-├── cards.json
-├── test_randomizer.py
-├── templates/
-│   └── index.html
-├── static/
-│   └── style.css
-├── .gitignore
-└── README.md
-```
-
-### `app.py`
-
-The Flask web application.
-
-Responsible for:
-
-* starting the web server,
-* loading the card database,
-* generating decks,
-* arranging decks,
-* generating Clash Royale links,
-* rendering the web interface.
-
-### `randomizer.py`
-
-Contains the main deck-generation and deck-arrangement logic.
-
-Important functions:
-
-* `has_evolution(card)` — checks whether a card has an Evolution available.
-* `is_champion(card)` — checks whether a card is a Champion.
-* `get_random_deck(loadCards)` — generates a random 8-card deck.
-* `arrange_deck(deck)` — assigns cards to their appropriate deck slots and marks active Evolutions.
-
-### `deck_link.py`
-
-Generates a Clash Royale deck link from the final arranged deck.
-
-### `cards.json`
-
-Local card database used by the application.
-
-### `main.py`
-
-Command-line entry point for working with the project outside the Flask web interface.
-
-### `test_randomizer.py`
-
-Automated tests for the deck generator and deck arrangement logic.
-
-### `templates/index.html`
-
-HTML template used by Flask for the web interface.
-
-### `static/style.css`
-
-Stylesheet used by the web interface.
 
 ## Requirements
 
-* Python 3
-* pip
+- Python 3.10 or newer
+- `pip`
+
+Runtime dependencies are declared in `requirements.txt`. Development and test
+dependencies are declared in `requirements-dev.txt`, which also installs the
+runtime requirements. GitHub Actions currently tests the project on Python 3.14.
 
 ## Installation
 
-Clone the repository:
+Clone the repository and enter its directory:
 
 ```bash
 git clone https://github.com/Franek2009/ClashRoyaleDeckRandomizer.git
-```
-
-Enter the project directory:
-
-```bash
 cd ClashRoyaleDeckRandomizer
 ```
 
-Create a virtual environment:
+Create and activate a virtual environment:
 
 ```bash
 python -m venv .venv
-```
-
-Activate it:
-
-```bash
 source .venv/bin/activate
 ```
 
-Install the production and development dependencies:
+Install the development dependencies:
 
 ```bash
 pip install -r requirements-dev.txt
 ```
 
-## Running the Application
+## Running
 
-Start the Flask development server:
+Start the application locally with Flask's development server:
 
 ```bash
 python app.py
 ```
 
-Then open:
+Open <http://127.0.0.1:5000> and select **Generate Deck**. The generated
+**Open in Clash Royale** link contains the eight card IDs in the same order as
+the displayed deck slots.
 
-```text
-http://127.0.0.1:5000
+The development server is intended only for local use. Production server and
+deployment configuration will be added in a later project stage.
+
+For a simple command-line demonstration that prints a random deck, run:
+
+```bash
+python main.py
 ```
-
-Click **Generate Deck** to generate a new deck.
 
 ## Testing
 
-The project includes automated tests for the randomizer and deck arrangement.
-
-Run:
+Run the complete test suite with:
 
 ```bash
-python test_randomizer.py
+python -m pytest -q
 ```
 
-The test suite generates 1000 random decks and checks that the implemented rules are respected.
+The deterministic tests cover card classification, deck size and uniqueness,
+Champion limits, the 0/1/2 Champion cases, Evolution and Champion slot rules,
+slot priority, inactive Evolution-capable cards, and deck-link construction. A
+separate stress test generates 1000 decks from the local card data.
 
-The tests verify:
+GitHub Actions runs the same test command for every push and pull request to
+`main`. The workflow is defined in `.github/workflows/ci.yml`.
 
-* the deck contains exactly 8 cards,
-* there are no duplicate cards,
-* there are no more than 2 Champions,
-* the deck can be successfully arranged,
-* the arranged deck contains exactly 8 cards,
-* Evolutions only occupy slots 1 or 3,
-* slot 2 never contains an Evolution,
-* Champions only occupy slots 2 or 3,
-* cards marked as Evolutions actually have an Evolution available.
-
-A successful run ends with:
+## Project structure
 
 ```text
-1000 testów zakończonych pomyślnie!
+ClashRoyaleDeckRandomizer/
+├── .github/workflows/ci.yml
+├── static/
+│   └── style.css
+├── templates/
+│   └── index.html
+├── tests/
+│   ├── test_deck_link.py
+│   └── test_randomizer.py
+├── app.py
+├── cards.json
+├── deck_link.py
+├── main.py
+├── randomizer.py
+├── pytest.ini
+├── requirements-dev.txt
+├── requirements.txt
+├── LICENSE
+└── README.md
 ```
 
-Because the deck generator is random, running the test suite multiple times can produce different decks while still validating the same rules.
+## Architecture and data flow
 
-## Development
-
-The project separates deck generation from the web interface.
-
-The general flow is:
+The project deliberately keeps a small module-based structure:
 
 ```text
 cards.json
-    ↓
-randomizer.py
-    ↓
-Random 8-card deck
-    ↓
-Deck slot arrangement
-    ↓
-deck_link.py
-    ↓
-Flask application
-    ↓
-Web interface
+    -> app.py loads local card data
+    -> randomizer.py selects and arranges eight cards
+    -> deck_link.py serializes final slot IDs into a Clash Royale link
+    -> templates/index.html renders the deck and link
 ```
 
-This makes the randomizer logic possible to test independently from the Flask application.
+`randomizer.py` contains the independently tested deck rules. `app.py` handles
+HTTP requests and template rendering, while `deck_link.py` only converts the
+arranged slot sequence into the game link. No external API is called while a
+deck is generated.
 
-## Current Status
+## Current limitations
 
-The core functionality is implemented and working:
+- `cards.json` is a local snapshot and can become outdated as the game changes.
+- Deck generation has no filters for arenas, card levels, or player collections.
+- The random seed and generated decks are not persisted between requests.
+- Card artwork is referenced through external URLs stored in `cards.json` and
+  therefore requires network access in the browser.
+- The application currently uses Flask's development server and has not yet
+  been deployed publicly.
+- No application screenshot is currently included in the repository.
 
-* random deck generation,
-* unique-card selection,
-* Champion handling,
-* Evolution handling,
-* deck-slot arrangement,
-* correct Evolution artwork,
-* Clash Royale deck links,
-* Flask web interface,
-* automated validation tests.
+## Project status
 
-The project is still under development. Future changes may include additional deck-generation rules, improvements to the user interface, and further testing.
+The core deck generation, slot arrangement, web interface, automated tests, and
+GitHub Actions CI are working. Production serving and deployment have not yet
+been completed. The repository is being prepared for its first `v1.0.0`
+release.
+
+## License
+
+The original source code created in this repository is available under the MIT
+License. See [LICENSE](LICENSE).
+
+The MIT License applies only to that original project code. The Clash Royale
+name, Supercell trademarks, card artwork, game materials, and other Supercell
+intellectual property are not licensed by this project and remain the property
+of their respective owners. Nothing in this repository grants permission to
+relicense or redistribute Supercell-owned materials beyond any rights provided
+by their owners and applicable policies.
 
 ## Disclaimer
 
-This material is unofficial and is not endorsed by Supercell.
+This is an unofficial, independent fan-made project. It is not affiliated with,
+sponsored by, endorsed by, or otherwise approved by Supercell.
 
-This project is an independent fan-made project and is not affiliated with,
-sponsored by, or endorsed by Supercell.
-
-For more information, see Supercell's Fan Content Policy:
-https://supercell.com/en/fan-content-policy/
+Clash Royale and related trademarks and materials belong to Supercell and their
+respective owners. Use of fan content is subject to
+[Supercell's Fan Content Policy](https://supercell.com/en/fan-content-policy/).
