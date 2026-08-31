@@ -63,7 +63,8 @@ Slot 8 -> Normal card
 
 Runtime dependencies are declared in `requirements.txt`. Development and test
 dependencies are declared in `requirements-dev.txt`, which also installs the
-runtime requirements. GitHub Actions currently tests the project on Python 3.14.
+runtime requirements. GitHub Actions currently tests the project on Python 3.10
+and 3.14.
 
 ## Installation
 
@@ -146,6 +147,7 @@ GitHub Actions runs the same test command for every push and pull request to
 ```text
 ClashRoyaleDeckRandomizer/
 ├── .github/workflows/ci.yml
+├── .github/workflows/release.yml
 ├── docs/
 │   └── screenshot.png
 ├── static/
@@ -153,6 +155,7 @@ ClashRoyaleDeckRandomizer/
 ├── templates/
 │   └── index.html
 ├── tests/
+│   ├── test_app.py
 │   ├── test_cards_data.py
 │   ├── test_deck_link.py
 │   └── test_randomizer.py
