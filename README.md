@@ -212,8 +212,13 @@ take longer while the service starts again.
 
 The core deck generation, slot arrangement, web interface, automated tests, and
 GitHub Actions CI are working. Production serving, the Render deployment,
-health monitoring, and project documentation are complete. The project is ready
-for its first stable `v1.0.0` release after final validation.
+health monitoring, and project documentation are complete. Version 1.0.0 is the
+first stable release of the project.
+
+## Releases
+
+Official project versions are published through GitHub Releases. This web
+application does not provide separate downloadable application packages.
 
 ## License
 
