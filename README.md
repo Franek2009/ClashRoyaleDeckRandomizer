@@ -153,6 +153,7 @@ ClashRoyaleDeckRandomizer/
 ├── templates/
 │   └── index.html
 ├── tests/
+│   ├── test_cards_data.py
 │   ├── test_deck_link.py
 │   └── test_randomizer.py
 ├── app.py
@@ -184,6 +185,26 @@ cards.json
 HTTP requests and template rendering, while `deck_link.py` only converts the
 arranged slot sequence into the game link. No external API is called while a
 deck is generated.
+
+## Card data provenance
+
+The repository includes `cards.json` as a local snapshot. Its current structure
+matches the response format of the
+[official Clash Royale Developer API](https://developer.clashroyale.com/) cards
+endpoint (`/v1/cards`), and its artwork fields reference Supercell-hosted
+`api-assets.clashroyale.com` URLs. Repository history does not record the exact
+fetch command or response metadata for this version, so more specific retrieval
+provenance cannot be independently verified.
+
+An earlier historical version of `cards.json` matched RoyaleAPI's
+[`cr-api-data`](https://github.com/RoyaleAPI/cr-api-data) card dataset, but that
+file was replaced and uses a different schema from the current snapshot. The
+RoyaleAPI repository does not state a license for its dataset.
+
+The project MIT License applies only to the original code written for this
+repository. It does not cover `cards.json`, card names, artwork URLs, artwork,
+trademarks, or other Supercell materials. Use of Supercell assets remains
+subject to [Supercell's Fan Content Policy](https://supercell.com/en/fan-content-policy/).
 
 ## Deployment
 
