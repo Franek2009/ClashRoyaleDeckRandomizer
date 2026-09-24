@@ -1,12 +1,78 @@
 import random
+from dataclasses import dataclass
+from enum import Enum
+
+
+EVOLUTION_BIT = 1
+HERO_BIT = 2
+
+
+class ActiveForm(Enum):
+    NORMAL = "normal"
+    EVOLUTION = "evolution"
+    HERO = "hero"
+    CHAMPION = "champion"
+
+
+class SlotRole(Enum):
+    EVOLUTION = "evolution"
+    HERO = "hero"
+    WILD = "wild"
+    NORMAL = "normal"
 
 
 def has_evolution(card):
-    return "evolutionMedium" in card.get("iconUrls", {})
+    return bool(card.get("maxEvolutionLevel", 0) & EVOLUTION_BIT)
+
+
+def has_hero(card):
+    return bool(card.get("maxEvolutionLevel", 0) & HERO_BIT)
 
 
 def is_champion(card):
     return card.get("rarity") == "champion"
+
+
+@dataclass(frozen=True)
+class DeckSlot:
+    card: dict
+    role: SlotRole
+    active_form: ActiveForm = ActiveForm.NORMAL
+
+    def __post_init__(self):
+        if self.active_form is ActiveForm.NORMAL:
+            return
+
+        allowed_forms = {
+            SlotRole.EVOLUTION: {ActiveForm.EVOLUTION},
+            SlotRole.HERO: {ActiveForm.HERO, ActiveForm.CHAMPION},
+            SlotRole.WILD: {
+                ActiveForm.EVOLUTION,
+                ActiveForm.HERO,
+                ActiveForm.CHAMPION,
+            },
+            SlotRole.NORMAL: set(),
+        }
+        if self.active_form not in allowed_forms[self.role]:
+            raise ValueError(
+                f"{self.active_form.value} cannot be active in "
+                f"a {self.role.value} slot"
+            )
+
+        capability_checks = {
+            ActiveForm.EVOLUTION: has_evolution,
+            ActiveForm.HERO: has_hero,
+            ActiveForm.CHAMPION: is_champion,
+        }
+        if not capability_checks[self.active_form](self.card):
+            raise ValueError(
+                f"card does not support active form {self.active_form.value}"
+            )
+
+    @property
+    def is_evolution(self):
+        """Compatibility property for the current, unchanged template."""
+        return self.active_form is ActiveForm.EVOLUTION
 
 
 def get_random_deck(cards):
@@ -34,58 +100,67 @@ def get_random_deck(cards):
     return chosen_cards
 
 
+def _take_first(cards, predicate):
+    for index, card in enumerate(cards):
+        if predicate(card):
+            return cards.pop(index)
+    return None
+
+
+def _hero_form(card):
+    if is_champion(card):
+        return ActiveForm.CHAMPION
+    return ActiveForm.HERO
+
+
 def arrange_deck(deck):
-    evolution_cards = []
-    champion_cards = []
-    normal_cards = []
+    """Assign eight unique cards to the current Evo, Hero and Wild slots."""
+    if len(deck) != 8:
+        raise ValueError("a Clash Royale deck must contain exactly eight cards")
 
-    for card in deck:
-        if is_champion(card):
-            champion_cards.append(card)
-        elif has_evolution(card):
-            evolution_cards.append(card)
-        else:
-            normal_cards.append(card)
+    card_ids = [card["id"] for card in deck]
+    if len(card_ids) != len(set(card_ids)):
+        raise ValueError("a Clash Royale deck cannot contain duplicate cards")
 
-    arranged_deck = []
+    remaining = list(deck)
+    arranged = []
 
-    # Slot 1: EVO
-    if evolution_cards:
-        arranged_deck.append(
-            {"card": evolution_cards.pop(), "is_evolution": True}
-        )
-
-    # Slot 2: Champion albo zwykła karta
-    if champion_cards:
-        arranged_deck.append(
-            {"card": champion_cards.pop(), "is_evolution": False}
-        )
+    evolution_card = _take_first(remaining, has_evolution)
+    if evolution_card is None:
+        evolution_card = remaining.pop(0)
+        evolution_form = ActiveForm.NORMAL
     else:
-        if normal_cards:
-            card = normal_cards.pop()
-        else:
-            card = evolution_cards.pop()
+        evolution_form = ActiveForm.EVOLUTION
+    arranged.append(
+        DeckSlot(evolution_card, SlotRole.EVOLUTION, evolution_form)
+    )
 
-        arranged_deck.append({"card": card, "is_evolution": False})
-
-    # Slot 3: Champion albo EVO albo zwykła karta
-    if champion_cards:
-        arranged_deck.append(
-            {"card": champion_cards.pop(), "is_evolution": False}
-        )
-    elif evolution_cards:
-        arranged_deck.append(
-            {"card": evolution_cards.pop(), "is_evolution": True}
-        )
+    hero_card = _take_first(
+        remaining, lambda card: is_champion(card) or has_hero(card)
+    )
+    if hero_card is None:
+        hero_card = remaining.pop(0)
+        hero_form = ActiveForm.NORMAL
     else:
-        arranged_deck.append(
-            {"card": normal_cards.pop(), "is_evolution": False}
-        )
+        hero_form = _hero_form(hero_card)
+    arranged.append(DeckSlot(hero_card, SlotRole.HERO, hero_form))
 
-    # Reszta kart
-    remaining_cards = evolution_cards + normal_cards
+    wild_card = _take_first(
+        remaining, lambda card: is_champion(card) or has_hero(card)
+    )
+    if wild_card is not None:
+        wild_form = _hero_form(wild_card)
+    else:
+        wild_card = _take_first(remaining, has_evolution)
+        if wild_card is None:
+            wild_card = remaining.pop(0)
+            wild_form = ActiveForm.NORMAL
+        else:
+            wild_form = ActiveForm.EVOLUTION
+    arranged.append(DeckSlot(wild_card, SlotRole.WILD, wild_form))
 
-    for card in remaining_cards:
-        arranged_deck.append({"card": card, "is_evolution": False})
-
-    return arranged_deck
+    arranged.extend(
+        DeckSlot(card, SlotRole.NORMAL, ActiveForm.NORMAL)
+        for card in remaining
+    )
+    return arranged

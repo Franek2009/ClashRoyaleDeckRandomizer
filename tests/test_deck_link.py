@@ -1,12 +1,10 @@
 from deck_link import generate_deck_link
+from randomizer import DeckSlot, SlotRole
 
 
 def test_generate_deck_link_preserves_slot_order_and_all_card_ids():
     card_ids = [26000000 + index for index in range(8)]
-    deck = [
-        {"card": {"id": card_id}, "is_evolution": False}
-        for card_id in card_ids
-    ]
+    deck = [DeckSlot({"id": card_id}, SlotRole.NORMAL) for card_id in card_ids]
 
     link = generate_deck_link(deck)
 
