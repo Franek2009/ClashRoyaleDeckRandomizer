@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from randomizer import has_evolution, has_hero, is_champion
+from randomizer import CardType, card_type, has_evolution, has_hero, is_champion
 
 
 CARDS_PATH = Path(__file__).resolve().parents[1] / "cards.json"
@@ -61,6 +61,11 @@ def test_cards_snapshot_is_compatible_with_application():
         assert has_evolution(card) is ("evolutionMedium" in icon_urls)
         assert has_hero(card) is ("heroMedium" in icon_urls)
         assert is_champion(card) is (card["rarity"] == "champion")
+        assert card_type(card) in {
+            CardType.TROOP,
+            CardType.SPELL,
+            CardType.BUILDING,
+        }
 
         if not is_champion(card):
             non_champion_count += 1

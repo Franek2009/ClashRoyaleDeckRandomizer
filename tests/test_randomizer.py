@@ -5,11 +5,13 @@ import pytest
 
 from randomizer import (
     ActiveForm,
+    CardType,
     ConstraintError,
     DeckConstraints,
     DeckSlot,
     SlotRole,
     arrange_deck,
+    card_type,
     get_random_deck,
     has_evolution,
     has_hero,
@@ -67,6 +69,26 @@ def make_catalog():
     ]
 
 
+def make_typed_catalog():
+    troops = [
+        make_card(26000001, has_evo=True),
+        make_card(26000002, has_evo=True),
+        make_card(26000003, has_hero_form=True),
+        make_card(26000004, has_hero_form=True),
+        make_card(26000005, has_evo=True, has_hero_form=True),
+        make_card(26000006, rarity="champion"),
+        make_card(26000007, rarity="champion"),
+        *[make_card(card_id) for card_id in range(26000008, 26000015)],
+    ]
+    buildings = [make_card(card_id) for card_id in range(27000001, 27000011)]
+    spells = [make_card(card_id) for card_id in range(28000001, 28000011)]
+    return troops + buildings + spells
+
+
+def deck_type_count(deck, kind):
+    return sum(card_type(card) is kind for card in deck)
+
+
 def active_counts(arranged):
     evolution_count = sum(
         slot.active_form is ActiveForm.EVOLUTION for slot in arranged
@@ -76,6 +98,29 @@ def active_counts(arranged):
         for slot in arranged
     )
     return evolution_count, hero_count
+
+
+@pytest.mark.parametrize(
+    ("card_id", "expected"),
+    [
+        (26000001, CardType.TROOP),
+        (27000001, CardType.BUILDING),
+        (28000001, CardType.SPELL),
+    ],
+)
+def test_card_type_uses_supported_card_id_spaces(card_id, expected):
+    assert card_type(make_card(card_id)) is expected
+
+
+@pytest.mark.parametrize("card_id", [26, 29000001])
+def test_card_type_rejects_unknown_card_id_space(card_id):
+    with pytest.raises(ValueError, match="unsupported card ID space"):
+        card_type(make_card(card_id))
+
+
+def test_card_type_rejects_bool_card_id():
+    with pytest.raises(ValueError, match="card ID must be an integer"):
+        card_type({"id": True})
 
 
 @pytest.mark.parametrize(
@@ -292,6 +337,8 @@ def test_default_constraints_are_unrestricted():
     assert constraints.required_ids == frozenset()
     assert constraints.evolution_count is None
     assert constraints.hero_champion_count is None
+    assert constraints.spell_count is None
+    assert constraints.building_count is None
 
 
 def test_available_none_uses_full_catalog():
@@ -514,6 +561,271 @@ def test_required_dual_form_card_can_remain_normal():
     dual_form_slot = next(slot for slot in arranged if slot.card["id"] == 5)
 
     assert dual_form_slot.active_form is ActiveForm.NORMAL
+
+
+@pytest.mark.parametrize("field", ["spell_count", "building_count"])
+@pytest.mark.parametrize("value", [-1, 9, True, 1.5])
+def test_type_counts_reject_invalid_values(field, value):
+    constraints = DeckConstraints(**{field: value})
+
+    with pytest.raises(ConstraintError, match=field):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+@pytest.mark.parametrize(
+    ("spell_count", "building_count"),
+    [(0, None), (8, 0), (None, 0), (0, 8), (5, 3)],
+)
+def test_exact_spell_and_building_counts_are_respected(
+    spell_count, building_count
+):
+    constraints = DeckConstraints(
+        evolution_count=0,
+        hero_champion_count=0,
+        spell_count=spell_count,
+        building_count=building_count,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+
+    if spell_count is not None:
+        assert deck_type_count(deck, CardType.SPELL) == spell_count
+    if building_count is not None:
+        assert deck_type_count(deck, CardType.BUILDING) == building_count
+
+
+def test_unrestricted_spells_with_exactly_two_buildings():
+    constraints = DeckConstraints(
+        required_ids=frozenset({28000001}),
+        evolution_count=0,
+        hero_champion_count=0,
+        spell_count=None,
+        building_count=2,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+
+    assert deck_type_count(deck, CardType.BUILDING) == 2
+    assert deck_type_count(deck, CardType.SPELL) >= 1
+
+
+def test_exactly_two_spells_with_unrestricted_buildings():
+    constraints = DeckConstraints(
+        required_ids=frozenset({27000001}),
+        evolution_count=0,
+        hero_champion_count=0,
+        spell_count=2,
+        building_count=None,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+
+    assert deck_type_count(deck, CardType.SPELL) == 2
+    assert deck_type_count(deck, CardType.BUILDING) >= 1
+
+
+def test_unrestricted_card_types_do_not_become_zero_constraints():
+    required_ids = frozenset({27000001, 28000001})
+    constraints = DeckConstraints(
+        required_ids=required_ids,
+        evolution_count=2,
+        hero_champion_count=1,
+        spell_count=None,
+        building_count=None,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+    deck_ids = {card["id"] for card in deck}
+
+    assert len(deck) == len(deck_ids) == 8
+    assert required_ids <= deck_ids
+    assert active_counts(arranged) == (2, 1)
+    assert deck_type_count(deck, CardType.SPELL) >= 1
+    assert deck_type_count(deck, CardType.BUILDING) >= 1
+
+
+def test_spell_and_building_counts_over_eight_are_rejected():
+    constraints = DeckConstraints(spell_count=5, building_count=4)
+
+    with pytest.raises(ConstraintError, match="cannot fit"):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+@pytest.mark.parametrize(
+    ("available_ids", "constraints", "message"),
+    [
+        (
+            frozenset(range(26000001, 26000010)) | {28000001},
+            {"spell_count": 2},
+            "only 1 Spell",
+        ),
+        (
+            frozenset(range(26000001, 26000010)) | {27000001},
+            {"building_count": 2},
+            "only 1 Building",
+        ),
+    ],
+)
+def test_too_few_cards_of_requested_type_are_rejected(
+    available_ids, constraints, message
+):
+    model = DeckConstraints(
+        available_ids=available_ids,
+        evolution_count=0,
+        hero_champion_count=0,
+        **constraints,
+    )
+
+    with pytest.raises(ConstraintError, match=message):
+        get_random_deck(make_typed_catalog(), model)
+
+
+@pytest.mark.parametrize(
+    ("required_id", "field", "message"),
+    [
+        (28000001, "spell_count", "1 required Spells exceed"),
+        (27000001, "building_count", "1 required Buildings exceed"),
+    ],
+)
+def test_required_typed_card_conflicts_with_zero_count(
+    required_id, field, message
+):
+    constraints = DeckConstraints(
+        required_ids=frozenset({required_id}),
+        evolution_count=0,
+        hero_champion_count=0,
+        **{field: 0},
+    )
+
+    with pytest.raises(ConstraintError, match=message):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+@pytest.mark.parametrize(
+    ("required_ids", "field", "limit", "message"),
+    [
+        (
+            frozenset({28000001, 28000002, 28000003}),
+            "spell_count",
+            2,
+            "3 required Spells exceed",
+        ),
+        (
+            frozenset({27000001, 27000002, 27000003}),
+            "building_count",
+            2,
+            "3 required Buildings exceed",
+        ),
+    ],
+)
+def test_required_typed_cards_cannot_exceed_requested_count(
+    required_ids, field, limit, message
+):
+    constraints = DeckConstraints(
+        required_ids=required_ids,
+        evolution_count=0,
+        hero_champion_count=0,
+        **{field: limit},
+    )
+
+    with pytest.raises(ConstraintError, match=message):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+def test_required_spells_use_the_requested_spell_slots():
+    required_spells = frozenset({28000001, 28000002})
+    constraints = DeckConstraints(
+        required_ids=required_spells,
+        evolution_count=0,
+        hero_champion_count=0,
+        spell_count=2,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+
+    assert required_spells <= {card["id"] for card in deck}
+    assert deck_type_count(deck, CardType.SPELL) == 2
+
+
+def test_banned_cards_reduce_available_type_pool():
+    constraints = DeckConstraints(
+        available_ids=(
+            frozenset(range(26000001, 26000010))
+            | {28000001, 28000002}
+        ),
+        banned_ids=frozenset({28000002}),
+        evolution_count=0,
+        hero_champion_count=0,
+        spell_count=2,
+    )
+
+    with pytest.raises(ConstraintError, match="only 1 Spell"):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+def test_type_and_special_form_constraints_are_satisfied_together():
+    constraints = DeckConstraints(
+        banned_ids=frozenset({28000010}),
+        required_ids=frozenset({28000001}),
+        evolution_count=2,
+        hero_champion_count=1,
+        spell_count=2,
+        building_count=1,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+    deck_ids = {card["id"] for card in deck}
+
+    assert 28000001 in deck_ids
+    assert 28000010 not in deck_ids
+    assert active_counts(arranged) == (2, 1)
+    assert deck_type_count(deck, CardType.SPELL) == 2
+    assert deck_type_count(deck, CardType.BUILDING) == 1
+
+
+@pytest.mark.parametrize(
+    "constraints",
+    [
+        DeckConstraints(
+            evolution_count=2,
+            hero_champion_count=1,
+            spell_count=2,
+            building_count=1,
+        ),
+        DeckConstraints(
+            required_ids=frozenset({28000001, 27000001}),
+            evolution_count=1,
+            hero_champion_count=2,
+            spell_count=3,
+            building_count=2,
+        ),
+        DeckConstraints(
+            banned_ids=frozenset({28000010, 27000010}),
+            evolution_count=0,
+            hero_champion_count=0,
+            spell_count=4,
+            building_count=4,
+        ),
+    ],
+)
+def test_type_and_special_constraint_stress_test(constraints):
+    for _ in range(100):
+        deck = get_random_deck(make_typed_catalog(), constraints)
+        arranged = arrange_deck(deck, constraints)
+
+        assert len(deck) == len({card["id"] for card in deck}) == 8
+        assert constraints.required_ids <= {card["id"] for card in deck}
+        assert active_counts(arranged) == (
+            constraints.evolution_count,
+            constraints.hero_champion_count,
+        )
+        assert deck_type_count(deck, CardType.SPELL) == constraints.spell_count
+        assert (
+            deck_type_count(deck, CardType.BUILDING)
+            == constraints.building_count
+        )
 
 
 def test_constrained_deck_is_unique_and_respects_all_lists_and_counts():
