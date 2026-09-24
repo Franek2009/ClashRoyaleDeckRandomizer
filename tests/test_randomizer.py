@@ -5,6 +5,8 @@ import pytest
 
 from randomizer import (
     ActiveForm,
+    ConstraintError,
+    DeckConstraints,
     DeckSlot,
     SlotRole,
     arrange_deck,
@@ -50,6 +52,30 @@ def make_deck(*special_cards):
     normal_count = 8 - len(special_cards)
     normal_cards = [make_card(300 + index) for index in range(normal_count)]
     return list(special_cards) + normal_cards
+
+
+def make_catalog():
+    return [
+        make_card(1, has_evo=True),
+        make_card(2, has_evo=True),
+        make_card(3, has_hero_form=True),
+        make_card(4, has_hero_form=True),
+        make_card(5, has_evo=True, has_hero_form=True),
+        make_card(6, rarity="champion"),
+        make_card(7, rarity="champion"),
+        *[make_card(card_id) for card_id in range(8, 20)],
+    ]
+
+
+def active_counts(arranged):
+    evolution_count = sum(
+        slot.active_form is ActiveForm.EVOLUTION for slot in arranged
+    )
+    hero_count = sum(
+        slot.active_form in {ActiveForm.HERO, ActiveForm.CHAMPION}
+        for slot in arranged
+    )
+    return evolution_count, hero_count
 
 
 @pytest.mark.parametrize(
@@ -256,6 +282,295 @@ def test_generated_deck_has_eight_unique_cards_and_at_most_two_champions():
     assert len(deck) == 8
     assert len({card["id"] for card in deck}) == 8
     assert sum(is_champion(card) for card in deck) <= 2
+
+
+def test_default_constraints_are_unrestricted():
+    constraints = DeckConstraints()
+
+    assert constraints.available_ids is None
+    assert constraints.banned_ids == frozenset()
+    assert constraints.required_ids == frozenset()
+    assert constraints.evolution_count is None
+    assert constraints.hero_champion_count is None
+
+
+def test_available_none_uses_full_catalog():
+    catalog = make_catalog()
+    constraints = DeckConstraints(
+        available_ids=None,
+        evolution_count=0,
+        hero_champion_count=0,
+    )
+
+    deck = get_random_deck(catalog, constraints)
+
+    assert len(deck) == 8
+    assert {card["id"] for card in deck} <= {card["id"] for card in catalog}
+
+
+def test_limited_available_pool_is_respected():
+    catalog = make_catalog()
+    available_ids = frozenset(range(1, 11))
+    constraints = DeckConstraints(
+        available_ids=available_ids,
+        evolution_count=1,
+        hero_champion_count=1,
+    )
+
+    deck = get_random_deck(catalog, constraints)
+
+    assert {card["id"] for card in deck} <= available_ids
+
+
+def test_banned_cards_are_excluded():
+    constraints = DeckConstraints(
+        banned_ids=frozenset({8, 9}),
+        evolution_count=1,
+        hero_champion_count=1,
+    )
+
+    deck = get_random_deck(make_catalog(), constraints)
+
+    assert {card["id"] for card in deck}.isdisjoint({8, 9})
+
+
+def test_required_cards_are_included():
+    constraints = DeckConstraints(
+        required_ids=frozenset({1, 8, 9}),
+        evolution_count=0,
+        hero_champion_count=0,
+    )
+
+    deck = get_random_deck(make_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+
+    assert {1, 8, 9} <= {card["id"] for card in deck}
+    assert active_counts(arranged) == (0, 0)
+
+
+def test_required_and_banned_conflict_is_rejected():
+    constraints = DeckConstraints(
+        banned_ids=frozenset({8}), required_ids=frozenset({8})
+    )
+
+    with pytest.raises(ConstraintError, match="required card 8 is banned"):
+        get_random_deck(make_catalog(), constraints)
+
+
+def test_required_card_outside_available_is_rejected():
+    constraints = DeckConstraints(
+        available_ids=frozenset(range(1, 9)),
+        required_ids=frozenset({9}),
+    )
+
+    with pytest.raises(ConstraintError, match="not in available"):
+        get_random_deck(make_catalog(), constraints)
+
+
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("available_ids", "unknown available card ID 999"),
+        ("banned_ids", "unknown banned card ID 999"),
+        ("required_ids", "unknown required card ID 999"),
+    ],
+)
+def test_unknown_card_ids_are_rejected(field, message):
+    constraints = DeckConstraints(**{field: frozenset({999})})
+
+    with pytest.raises(ConstraintError, match=message):
+        get_random_deck(make_catalog(), constraints)
+
+
+def test_more_than_eight_required_cards_are_rejected():
+    constraints = DeckConstraints(required_ids=frozenset(range(1, 10)))
+
+    with pytest.raises(ConstraintError, match="9 required cards"):
+        get_random_deck(make_catalog(), constraints)
+
+
+def test_effective_pool_smaller_than_eight_is_rejected():
+    constraints = DeckConstraints(available_ids=frozenset(range(1, 8)))
+
+    with pytest.raises(ConstraintError, match="pool has 7 cards"):
+        get_random_deck(make_catalog(), constraints)
+
+
+@pytest.mark.parametrize("evolution_count", [0, 1, 2])
+def test_exact_evolution_count_is_respected(evolution_count):
+    constraints = DeckConstraints(
+        evolution_count=evolution_count,
+        hero_champion_count=0,
+    )
+
+    deck = get_random_deck(make_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+
+    assert active_counts(arranged) == (evolution_count, 0)
+
+
+@pytest.mark.parametrize("hero_count", [0, 1, 2])
+def test_exact_hero_champion_count_is_respected(hero_count):
+    constraints = DeckConstraints(
+        evolution_count=0,
+        hero_champion_count=hero_count,
+    )
+
+    deck = get_random_deck(make_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+
+    assert active_counts(arranged) == (0, hero_count)
+
+
+@pytest.mark.parametrize("counts", [(2, 1), (1, 2)])
+def test_three_special_slots_support_valid_mixed_counts(counts):
+    constraints = DeckConstraints(
+        evolution_count=counts[0],
+        hero_champion_count=counts[1],
+    )
+
+    deck = get_random_deck(make_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+
+    assert active_counts(arranged) == counts
+
+
+def test_two_evolutions_and_two_heroes_are_rejected():
+    constraints = DeckConstraints(
+        evolution_count=2, hero_champion_count=2
+    )
+
+    with pytest.raises(ConstraintError, match="only 3 slots"):
+        get_random_deck(make_catalog(), constraints)
+
+
+def test_too_few_evolution_capable_cards_are_rejected():
+    catalog = [make_card(1, has_evo=True)] + [
+        make_card(card_id) for card_id in range(2, 10)
+    ]
+    constraints = DeckConstraints(
+        evolution_count=2, hero_champion_count=0
+    )
+
+    with pytest.raises(ConstraintError, match="only 1 Evolution-capable"):
+        get_random_deck(catalog, constraints)
+
+
+def test_too_few_hero_champion_cards_are_rejected():
+    catalog = [make_card(1, has_hero_form=True)] + [
+        make_card(card_id) for card_id in range(2, 10)
+    ]
+    constraints = DeckConstraints(
+        evolution_count=0, hero_champion_count=2
+    )
+
+    with pytest.raises(ConstraintError, match="only 1 Hero/Champion"):
+        get_random_deck(catalog, constraints)
+
+
+def test_dual_form_card_cannot_fill_two_active_slots():
+    catalog = [make_card(1, has_evo=True, has_hero_form=True)] + [
+        make_card(card_id) for card_id in range(2, 10)
+    ]
+    constraints = DeckConstraints(
+        evolution_count=1, hero_champion_count=1
+    )
+
+    with pytest.raises(ConstraintError, match="distinct cards"):
+        get_random_deck(catalog, constraints)
+
+
+def test_required_champion_conflicts_with_requested_zero_hero_slots():
+    constraints = DeckConstraints(
+        required_ids=frozenset({6}),
+        evolution_count=0,
+        hero_champion_count=0,
+    )
+
+    with pytest.raises(ConstraintError, match="required Champions"):
+        get_random_deck(make_catalog(), constraints)
+
+
+def test_two_required_champions_conflict_with_one_hero_slot():
+    constraints = DeckConstraints(
+        required_ids=frozenset({6, 7}),
+        evolution_count=0,
+        hero_champion_count=1,
+    )
+
+    with pytest.raises(ConstraintError, match="required Champions"):
+        get_random_deck(make_catalog(), constraints)
+
+
+def test_required_dual_form_card_can_remain_normal():
+    constraints = DeckConstraints(
+        required_ids=frozenset({5}),
+        evolution_count=0,
+        hero_champion_count=0,
+    )
+
+    deck = get_random_deck(make_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+    dual_form_slot = next(slot for slot in arranged if slot.card["id"] == 5)
+
+    assert dual_form_slot.active_form is ActiveForm.NORMAL
+
+
+def test_constrained_deck_is_unique_and_respects_all_lists_and_counts():
+    constraints = DeckConstraints(
+        available_ids=frozenset(range(1, 16)),
+        banned_ids=frozenset({10, 11}),
+        required_ids=frozenset({1, 6, 8}),
+        evolution_count=2,
+        hero_champion_count=1,
+    )
+
+    deck = get_random_deck(make_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+    deck_ids = {card["id"] for card in deck}
+
+    assert len(deck) == len(deck_ids) == 8
+    assert constraints.required_ids <= deck_ids
+    assert deck_ids.isdisjoint(constraints.banned_ids)
+    assert deck_ids <= constraints.available_ids
+    assert active_counts(arranged) == (2, 1)
+
+
+def test_get_random_deck_without_constraints_remains_supported():
+    deck = get_random_deck(make_catalog())
+
+    assert len(deck) == 8
+    assert len({card["id"] for card in deck}) == 8
+
+
+@pytest.mark.parametrize(
+    "constraints",
+    [
+        DeckConstraints(evolution_count=2, hero_champion_count=0),
+        DeckConstraints(evolution_count=1, hero_champion_count=2),
+        DeckConstraints(
+            banned_ids=frozenset({10, 11}),
+            required_ids=frozenset({1, 8}),
+            evolution_count=2,
+            hero_champion_count=1,
+        ),
+    ],
+)
+def test_constrained_generation_stress_test(constraints):
+    for _ in range(100):
+        deck = get_random_deck(make_catalog(), constraints)
+        arranged = arrange_deck(deck, constraints)
+
+        assert len(deck) == 8
+        assert len({card["id"] for card in deck}) == 8
+        assert constraints.required_ids <= {card["id"] for card in deck}
+        assert {card["id"] for card in deck}.isdisjoint(
+            constraints.banned_ids
+        )
+        assert active_counts(arranged) == (
+            constraints.evolution_count,
+            constraints.hero_champion_count,
+        )
 
 
 def test_random_deck_rules_stress_test():
