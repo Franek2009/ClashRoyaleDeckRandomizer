@@ -6,6 +6,10 @@ from app import app
 
 def post(client, **overrides):
     data = {
+        "available_mode": "all",
+        "available_ids": [],
+        "banned_ids": [],
+        "required_ids": [],
         "evolution_slot_enabled": "on",
         "hero_slot_enabled": "on",
         "wild_slot_mode": "evolution",
@@ -16,6 +20,15 @@ def post(client, **overrides):
     }
     data.update(overrides)
     return client.post("/generate", data=data)
+
+
+def deck_card_ids(response):
+    return {
+        int(card_id)
+        for card_id in re.findall(
+            rb'class="card"\s+data-card-id="(\d+)"', response.data
+        )
+    }
 
 
 def test_home_returns_new_slot_form():
@@ -54,6 +67,146 @@ def test_default_slot_values_are_selected():
         rb'name="wild_slot_mode"\s+value="evolution"\s+checked',
         response.data,
     )
+
+
+def test_card_pool_defaults_to_all_with_empty_lists():
+    response = app.test_client().get("/")
+
+    assert re.search(
+        rb'name="available_mode"\s+value="all"\s+checked', response.data
+    )
+    assert b'data-selected-count="available">0</span>' in response.data
+    assert b'data-selected-count="banned">0</span>' in response.data
+    assert b'data-selected-count="required">0</span>' in response.data
+
+
+def test_custom_available_ids_are_passed_to_backend(monkeypatch):
+    captured = {}
+
+    def capture(cards, constraints):
+        captured["constraints"] = constraints
+        raise app_module.ConstraintError(
+            "test stop", code="constraints_not_feasible"
+        )
+
+    monkeypatch.setattr(app_module, "get_random_deck", capture)
+    selected = [26000005, 26000009, 26000015]
+
+    response = post(
+        app.test_client(), available_mode="custom", available_ids=selected
+    )
+
+    assert response.status_code == 200
+    assert captured["constraints"].available_ids == frozenset(selected)
+
+
+def test_banned_card_does_not_appear_in_generated_deck():
+    banned_id = 26000005
+
+    response = post(app.test_client(), banned_ids=[banned_id])
+
+    assert response.status_code == 200
+    assert banned_id not in deck_card_ids(response)
+
+
+def test_required_card_appears_in_generated_deck():
+    required_id = 26000005
+
+    response = post(app.test_client(), required_ids=[required_id])
+
+    assert response.status_code == 200
+    assert required_id in deck_card_ids(response)
+
+
+def test_required_and_banned_conflict_has_friendly_error():
+    response = post(
+        app.test_client(), banned_ids=[26000005], required_ids=[26000005]
+    )
+
+    assert response.status_code == 200
+    assert b"Required cards cannot also be banned" in response.data
+    assert b"required card 26000005" not in response.data
+
+
+def test_required_outside_custom_available_has_friendly_error():
+    response = post(
+        app.test_client(),
+        available_mode="custom",
+        available_ids=list(range(26000005, 26000013)),
+        required_ids=[26000014],
+    )
+
+    assert response.status_code == 200
+    assert b"Every required card must also be included" in response.data
+    assert b"not in available cards" not in response.data
+
+
+def test_custom_available_with_fewer_than_eight_cards_has_friendly_error():
+    response = post(
+        app.test_client(),
+        available_mode="custom",
+        available_ids=[26000005, 26000009, 26000015],
+    )
+
+    assert response.status_code == 200
+    assert b"enough available cards to build an 8-card deck" in response.data
+    assert b"effective card pool" not in response.data
+
+
+def test_more_than_eight_required_cards_has_friendly_error():
+    response = post(
+        app.test_client(), required_ids=list(range(26000000, 26000009))
+    )
+
+    assert response.status_code == 200
+    assert b"at most 8 required cards" in response.data
+    assert b"required cards cannot fit" not in response.data
+
+
+def test_card_pool_values_are_retained_after_error():
+    response = post(
+        app.test_client(),
+        available_mode="custom",
+        available_ids=[26000005, 26000009],
+        banned_ids=[26000005],
+        required_ids=[26000005],
+    )
+
+    assert re.search(
+        rb'name="available_mode"\s+value="custom"\s+checked', response.data
+    )
+    for name, card_id in (
+        (b"available_ids", b"26000005"),
+        (b"available_ids", b"26000009"),
+        (b"banned_ids", b"26000005"),
+        (b"required_ids", b"26000005"),
+    ):
+        pattern = (
+            rb'name="' + name + rb'"\s+value="' + card_id
+            + rb'"[^>]*checked'
+        )
+        assert re.search(pattern, response.data)
+
+
+def test_mirror_uses_dash_in_picker_and_result():
+    response = post(app.test_client(), required_ids=[28000006])
+
+    assert response.status_code == 200
+    assert 28000006 in deck_card_ids(response)
+    assert b"N/A" not in response.data
+    assert "—".encode() in response.data
+
+
+def test_card_picker_and_search_are_rendered():
+    response = app.test_client().get("/")
+
+    assert b'id="card-pool-heading">Card Pool' in response.data
+    assert b'id="card-search"' in response.data
+    assert b'data-picker-context="available"' in response.data
+    assert b'data-picker-context="banned"' in response.data
+    assert b'data-picker-context="required"' in response.data
+    assert response.data.count(b"data-picker-card ") == 122
+    assert b'/static/app.js' in response.data
 
 
 def test_generate_default_renders_eight_cards_and_derived_counts():

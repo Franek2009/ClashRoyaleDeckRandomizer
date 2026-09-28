@@ -460,8 +460,11 @@ def test_required_and_banned_conflict_is_rejected():
         banned_ids=frozenset({8}), required_ids=frozenset({8})
     )
 
-    with pytest.raises(ConstraintError, match="required card 8 is banned"):
+    with pytest.raises(
+        ConstraintError, match="required card 8 is banned"
+    ) as error:
         get_random_deck(make_catalog(), constraints)
+    assert error.value.code == "required_banned_conflict"
 
 
 def test_required_card_outside_available_is_rejected():
@@ -470,8 +473,9 @@ def test_required_card_outside_available_is_rejected():
         required_ids=frozenset({9}),
     )
 
-    with pytest.raises(ConstraintError, match="not in available"):
+    with pytest.raises(ConstraintError, match="not in available") as error:
         get_random_deck(make_catalog(), constraints)
+    assert error.value.code == "required_not_available"
 
 
 @pytest.mark.parametrize(
@@ -485,22 +489,25 @@ def test_required_card_outside_available_is_rejected():
 def test_unknown_card_ids_are_rejected(field, message):
     constraints = DeckConstraints(**{field: frozenset({999})})
 
-    with pytest.raises(ConstraintError, match=message):
+    with pytest.raises(ConstraintError, match=message) as error:
         get_random_deck(make_catalog(), constraints)
+    assert error.value.code == "unknown_card_selection"
 
 
 def test_more_than_eight_required_cards_are_rejected():
     constraints = DeckConstraints(required_ids=frozenset(range(1, 10)))
 
-    with pytest.raises(ConstraintError, match="9 required cards"):
+    with pytest.raises(ConstraintError, match="9 required cards") as error:
         get_random_deck(make_catalog(), constraints)
+    assert error.value.code == "too_many_required"
 
 
 def test_effective_pool_smaller_than_eight_is_rejected():
     constraints = DeckConstraints(available_ids=frozenset(range(1, 8)))
 
-    with pytest.raises(ConstraintError, match="pool has 7 cards"):
+    with pytest.raises(ConstraintError, match="pool has 7 cards") as error:
         get_random_deck(make_catalog(), constraints)
+    assert error.value.code == "not_enough_eligible_cards"
 
 
 @pytest.mark.parametrize(

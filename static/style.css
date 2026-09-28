@@ -185,6 +185,231 @@ body {
     margin-top: 12px;
 }
 
+/* Card pool picker */
+
+.available-mode {
+    max-width: 440px;
+    margin: 16px 0 0;
+    padding: 0;
+    border: 0;
+}
+
+.available-mode legend {
+    margin-bottom: 7px;
+    color: #e5e7eb;
+    font-size: 0.9rem;
+}
+
+.picker-contexts {
+    display: flex;
+    gap: 8px;
+    margin: 18px 0 14px;
+    overflow-x: auto;
+}
+
+.picker-context {
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid #6b7280;
+    border-radius: 999px;
+    color: #e5e7eb;
+    background: #111827;
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.picker-context.is-active {
+    border-color: #8b5cf6;
+    color: white;
+    background: #5b21b6;
+    font-weight: bold;
+}
+
+.picker-context:focus-visible,
+.card-chip button:focus-visible {
+    outline: 2px solid #c4b5fd;
+    outline-offset: 2px;
+}
+
+.available-all-message {
+    display: none;
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid #4b5563;
+    border-radius: 8px;
+    color: #cbd5e1;
+    background: #111827;
+    font-size: 0.9rem;
+}
+
+.js .card-pool[data-context="available"][data-available-mode="all"] .available-all-message {
+    display: block;
+}
+
+.js .card-pool[data-context="available"][data-available-mode="all"] .picker-workspace {
+    display: none;
+}
+
+.picker-search-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 14px;
+}
+
+.picker-search-field label {
+    color: #e5e7eb;
+    font-size: 0.9rem;
+}
+
+.picker-search-field input {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 11px;
+    border: 1px solid #6b7280;
+    border-radius: 8px;
+    color: #f9fafb;
+    background: #111827;
+    font: inherit;
+}
+
+.picker-search-field input:focus {
+    outline: 2px solid #a78bfa;
+    outline-offset: 2px;
+}
+
+.selected-card-groups {
+    margin-bottom: 14px;
+}
+
+.selected-cards {
+    margin-bottom: 10px;
+}
+
+.selected-cards p {
+    margin: 0 0 6px;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+}
+
+.js .selected-cards {
+    display: none;
+}
+
+.js .selected-cards.is-active {
+    display: block;
+}
+
+.selected-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.card-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 5px 8px;
+    border-radius: 999px;
+    color: #ddd6fe;
+    background: #312e81;
+    font-size: 0.78rem;
+}
+
+.card-chip button {
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.card-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    max-height: 480px;
+    padding: 2px;
+    overflow-y: auto;
+}
+
+.picker-card {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #4b5563;
+    border-radius: 10px;
+    background: #111827;
+}
+
+.picker-card.is-selected {
+    border-color: #a78bfa;
+    box-shadow: inset 0 0 0 2px #7c3aed;
+}
+
+.picker-card[hidden] {
+    display: none;
+}
+
+.picker-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1.2;
+    object-fit: cover;
+}
+
+.picker-card-copy {
+    padding: 8px;
+}
+
+.picker-card-copy h3 {
+    margin: 0 0 4px;
+    overflow: hidden;
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.picker-card-copy span {
+    color: #9ca3af;
+    font-size: 0.72rem;
+}
+
+.picker-card-controls {
+    display: grid;
+    gap: 5px;
+    padding: 0 8px 8px;
+}
+
+.picker-card-control {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    color: #cbd5e1;
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.picker-card-control input {
+    width: 17px;
+    height: 17px;
+    accent-color: #7c3aed;
+}
+
+.js .picker-card {
+    cursor: pointer;
+}
+
+.js .picker-card-control:not(.is-active) {
+    display: none;
+}
+
 .header .error-message {
     max-width: 850px;
     margin: 18px auto 0;
@@ -466,6 +691,10 @@ body {
         padding: 25px 0;
     }
 
+    .card-picker-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
     .header h1 {
         font-size: 1.8rem;
     }
@@ -487,6 +716,21 @@ body {
     .generate-button {
         width: 100%;
         min-height: 46px;
+    }
+
+    .picker-contexts {
+        margin-right: -2px;
+        padding-bottom: 3px;
+    }
+
+    .picker-context {
+        padding: 8px 11px;
+        font-size: 0.82rem;
+    }
+
+    .card-picker-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: 430px;
     }
 
     .deck {

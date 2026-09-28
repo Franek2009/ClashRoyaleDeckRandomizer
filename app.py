@@ -30,6 +30,7 @@ SLOT_FIELDS = (
     "wild_slot_mode",
 )
 AVERAGE_FIELDS = ("min_average_elixir", "max_average_elixir")
+CARD_POOL_FIELDS = ("available_ids", "banned_ids", "required_ids")
 
 FRIENDLY_ERRORS = {
     "type_counts_exceed_deck_size": (
@@ -55,6 +56,23 @@ FRIENDLY_ERRORS = {
     "invalid_count": "Choose Any or a whole number from the list.",
     "invalid_average": "Enter a valid number for the deck average.",
     "invalid_slot_selection": "Choose a valid special-slot setting.",
+    "invalid_card_selection": (
+        "One or more selected cards are no longer available. Refresh the "
+        "page and try again."
+    ),
+    "unknown_card_selection": (
+        "One or more selected cards are no longer available. Refresh the "
+        "page and try again."
+    ),
+    "required_banned_conflict": "Required cards cannot also be banned.",
+    "required_not_available": (
+        "Every required card must also be included in the available card "
+        "pool."
+    ),
+    "not_enough_eligible_cards": (
+        "There aren't enough available cards to build an 8-card deck."
+    ),
+    "too_many_required": "A deck can contain at most 8 required cards.",
 }
 
 GENERIC_CONSTRAINT_ERROR = (
@@ -68,6 +86,8 @@ def _default_form_values():
         "evolution_slot_enabled": "on",
         "hero_slot_enabled": "on",
         "wild_slot_mode": WildSlotMode.EVOLUTION.value,
+        "available_mode": "all",
+        **{field: [] for field in CARD_POOL_FIELDS},
         **{field: "any" for field in COUNT_FIELDS},
         **{field: "" for field in AVERAGE_FIELDS},
     }
@@ -104,8 +124,29 @@ def _parse_wild_mode(value):
         ) from error
 
 
+def _parse_card_ids(values):
+    try:
+        return frozenset(int(value) for value in values)
+    except (TypeError, ValueError) as error:
+        raise ConstraintError(
+            "card IDs must be integers", code="invalid_card_selection"
+        ) from error
+
+
 def _constraints_from_form(form_values):
+    available_mode = form_values["available_mode"]
+    if available_mode not in {"all", "custom"}:
+        raise ConstraintError(
+            "available_mode is invalid", code="invalid_card_selection"
+        )
     return DeckConstraints(
+        available_ids=(
+            None
+            if available_mode == "all"
+            else _parse_card_ids(form_values["available_ids"])
+        ),
+        banned_ids=_parse_card_ids(form_values["banned_ids"]),
+        required_ids=_parse_card_ids(form_values["required_ids"]),
         evolution_slot_enabled=form_values["evolution_slot_enabled"] == "on",
         hero_slot_enabled=form_values["hero_slot_enabled"] == "on",
         wild_slot_mode=_parse_wild_mode(form_values["wild_slot_mode"]),
@@ -123,7 +164,7 @@ def _constraints_from_form(form_values):
 def _deck_summary(deck, arranged_deck):
     average = average_elixir(deck)
     if average is None:
-        average_display = "N/A (Mirror)"
+        average_display = "— (Mirror)"
     else:
         average_display = f"{average:.2f}".rstrip("0")
         if average_display.endswith("."):
@@ -155,8 +196,10 @@ def _deck_summary(deck, arranged_deck):
 
 @app.route("/")
 def home():
+    with open("cards.json", encoding="utf-8") as file:
+        cards = json.load(file)["items"]
     return render_template(
-        "index.html", form_values=_default_form_values()
+        "index.html", cards=cards, form_values=_default_form_values()
     )
 
 
@@ -172,6 +215,12 @@ def generate():
         field: request.form.get(field, defaults[field])
         for field in (*SLOT_FIELDS, *COUNT_FIELDS, *AVERAGE_FIELDS)
     }
+    form_values["available_mode"] = request.form.get(
+        "available_mode", defaults["available_mode"]
+    )
+    form_values.update(
+        {field: request.form.getlist(field) for field in CARD_POOL_FIELDS}
+    )
 
     with open("cards.json", encoding="utf-8") as file:
         cards = json.load(file)["items"]
@@ -186,6 +235,7 @@ def generate():
             error_message=FRIENDLY_ERRORS.get(
                 error.code, GENERIC_CONSTRAINT_ERROR
             ),
+            cards=cards,
             form_values=form_values,
         )
 
@@ -209,6 +259,7 @@ def generate():
         deck_link=deck_link,
         deck_summary=_deck_summary(random_deck, arranged_deck),
         wild_form_notice=wild_form_notice,
+        cards=cards,
         form_values=form_values,
     )
 

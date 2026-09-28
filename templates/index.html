@@ -8,6 +8,7 @@
     <title>Clash Royale Deck Randomizer</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </head>
 
 <body>
@@ -34,6 +35,20 @@
             >
             <span>{{ label }}</span>
         </label>
+    {% endmacro %}
+
+    {% macro selected_cards(pool, label) %}
+        <div class="selected-cards" data-selected-pool="{{ pool }}">
+            <p><strong>{{ label }}</strong> (<span data-selected-count="{{ pool }}">{{ form_values[pool + '_ids']|length }}</span>)</p>
+            <div class="selected-chips" data-selected-chips="{{ pool }}">
+                {% for card in cards if card.id|string in form_values[pool + '_ids'] %}
+                    <span class="card-chip" data-card-id="{{ card.id }}">
+                        {{ card.name }}
+                        <button type="button" data-remove-card="{{ pool }}" data-card-id="{{ card.id }}" aria-label="Remove {{ card.name }} from {{ label }}">×</button>
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
     {% endmacro %}
 
     <main class="container">
@@ -75,6 +90,74 @@
                             </fieldset>
                         </div>
                         <p class="constraint-help">Wild Slot can activate either an Evolution or a Hero / Champion.</p>
+                    </section>
+
+                    <section class="constraint-group card-pool" aria-labelledby="card-pool-heading">
+                        <h2 id="card-pool-heading">Card Pool</h2>
+                        <p class="constraint-help">Choose which cards may, may not, or must appear in the deck.</p>
+
+                        <fieldset class="available-mode">
+                            <legend>Available cards</legend>
+                            <div class="segmented-options">
+                                {{ slot_option('available_mode', 'all', 'All cards') }}
+                                {{ slot_option('available_mode', 'custom', 'Custom selection') }}
+                            </div>
+                        </fieldset>
+
+                        <div class="picker-contexts" role="group" aria-label="Card selection list">
+                            <button type="button" class="picker-context is-active" data-picker-context="available" aria-pressed="true">
+                                Available (<span data-selected-count="available">{{ form_values['available_ids']|length }}</span>)
+                            </button>
+                            <button type="button" class="picker-context" data-picker-context="banned" aria-pressed="false">
+                                Banned (<span data-selected-count="banned">{{ form_values['banned_ids']|length }}</span>)
+                            </button>
+                            <button type="button" class="picker-context" data-picker-context="required" aria-pressed="false">
+                                Required (<span data-selected-count="required">{{ form_values['required_ids']|length }}</span>)
+                            </button>
+                        </div>
+
+                        <p class="available-all-message" data-available-all-message>
+                            All cards are currently available. Choose Custom selection to restrict the pool.
+                        </p>
+
+                        <div class="picker-workspace" data-picker-workspace>
+                            <div class="picker-search-field">
+                                <label for="card-search">Search cards</label>
+                                <input id="card-search" type="search" placeholder="e.g. Wizard" autocomplete="off" data-card-search>
+                            </div>
+
+                            <div class="selected-card-groups">
+                                {{ selected_cards('available', 'Available') }}
+                                {{ selected_cards('banned', 'Banned') }}
+                                {{ selected_cards('required', 'Required') }}
+                            </div>
+
+                            <div class="card-picker-grid" data-card-picker>
+                                {% for card in cards %}
+                                    <article class="picker-card" data-picker-card data-card-name="{{ card.name|lower }}" data-card-id="{{ card.id }}">
+                                        <img src="{{ card.iconUrls.medium }}" alt="" loading="lazy">
+                                        <div class="picker-card-copy">
+                                            <h3>{{ card.name }}</h3>
+                                            <span>Elixir: {{ card.get('elixirCost', '—') }}</span>
+                                        </div>
+                                        <div class="picker-card-controls">
+                                            {% for pool, label in [('available', 'Available'), ('banned', 'Banned'), ('required', 'Required')] %}
+                                                <label class="picker-card-control" data-pool-control="{{ pool }}">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="{{ pool }}_ids"
+                                                        value="{{ card.id }}"
+                                                        aria-label="{{ label }}: {{ card.name }}"
+                                                        {% if card.id|string in form_values[pool + '_ids'] %}checked{% endif %}
+                                                    >
+                                                    <span>{{ label }}</span>
+                                                </label>
+                                            {% endfor %}
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        </div>
                     </section>
 
                     <section class="constraint-group" aria-labelledby="deck-composition-heading">
@@ -174,6 +257,7 @@
 
                         <article
                             class="card"
+                            data-card-id="{{ slot.card.id }}"
                             data-slot-role="{{ slot.role.value }}"
                             data-active-form="{{ slot.active_form.value }}"
                         >
@@ -221,7 +305,7 @@
 
                                     <span class="elixir">
                                         <span class="elixir-icon"></span>
-                                        {{ slot.card.get('elixirCost', 'N/A') }}
+                                        {{ slot.card.get('elixirCost', '—') }}
                                     </span>
 
                                 </div>

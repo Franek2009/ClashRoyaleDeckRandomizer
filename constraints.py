@@ -81,7 +81,8 @@ def validate_constraints(cards, constraints):
     if len(constraints.required_ids) > 8:
         raise ConstraintError(
             f"{len(constraints.required_ids)} required cards cannot fit "
-            "in an 8-card deck"
+            "in an 8-card deck",
+            code="too_many_required",
         )
 
     id_sets = (
@@ -93,12 +94,18 @@ def validate_constraints(cards, constraints):
     for label, ids in id_sets:
         unknown_ids = sorted(set(ids) - catalog_ids)
         if unknown_ids:
-            raise ConstraintError(f"unknown {label} card ID {unknown_ids[0]}")
+            raise ConstraintError(
+                f"unknown {label} card ID {unknown_ids[0]}",
+                code="unknown_card_selection",
+            )
 
     banned_required = constraints.required_ids & constraints.banned_ids
     if banned_required:
         card_id = min(banned_required)
-        raise ConstraintError(f"required card {card_id} is banned")
+        raise ConstraintError(
+            f"required card {card_id} is banned",
+            code="required_banned_conflict",
+        )
     if constraints.available_ids is not None:
         unavailable_required = (
             constraints.required_ids - constraints.available_ids
@@ -106,7 +113,8 @@ def validate_constraints(cards, constraints):
         if unavailable_required:
             card_id = min(unavailable_required)
             raise ConstraintError(
-                f"required card {card_id} is not in available cards"
+                f"required card {card_id} is not in available cards",
+                code="required_not_available",
             )
 
     eligible_ids = (
@@ -119,7 +127,8 @@ def validate_constraints(cards, constraints):
     if len(eligible_cards) < 8:
         raise ConstraintError(
             f"effective card pool has {len(eligible_cards)} cards; "
-            "at least 8 are required"
+            "at least 8 are required",
+            code="not_enough_eligible_cards",
         )
 
     if not isinstance(constraints.evolution_slot_enabled, bool):
@@ -175,7 +184,8 @@ def validate_constraints(cards, constraints):
         if len(eligible_cards) < 8:
             raise ConstraintError(
                 f"effective card pool has {len(eligible_cards)} cards after "
-                "excluding Mirror; at least 8 are required"
+                "excluding Mirror; at least 8 are required",
+                code="not_enough_eligible_cards",
             )
 
     type_constraints = (
