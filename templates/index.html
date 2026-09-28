@@ -35,13 +35,36 @@
                     <legend>Deck constraints</legend>
 
                     <div class="constraints-grid">
-                        {{ count_select('evolution_count', 'Evolution count', 2) }}
-                        {{ count_select('hero_champion_count', 'Hero / Champion count', 2) }}
+                        <div class="constraint-field">
+                            <label for="evolution_slot_enabled">Evolution Slot</label>
+                            <select id="evolution_slot_enabled" name="evolution_slot_enabled">
+                                <option value="off"{% if form_values['evolution_slot_enabled'] == 'off' %} selected{% endif %}>Off</option>
+                                <option value="on"{% if form_values['evolution_slot_enabled'] == 'on' %} selected{% endif %}>Evolution</option>
+                            </select>
+                        </div>
+
+                        <div class="constraint-field">
+                            <label for="hero_slot_enabled">Hero Slot</label>
+                            <select id="hero_slot_enabled" name="hero_slot_enabled">
+                                <option value="off"{% if form_values['hero_slot_enabled'] == 'off' %} selected{% endif %}>Off</option>
+                                <option value="on"{% if form_values['hero_slot_enabled'] == 'on' %} selected{% endif %}>Hero / Champion</option>
+                            </select>
+                        </div>
+
+                        <div class="constraint-field">
+                            <label for="wild_slot_mode">Wild Slot</label>
+                            <select id="wild_slot_mode" name="wild_slot_mode">
+                                <option value="off"{% if form_values['wild_slot_mode'] == 'off' %} selected{% endif %}>Off</option>
+                                <option value="evolution"{% if form_values['wild_slot_mode'] == 'evolution' %} selected{% endif %}>Evolution</option>
+                                <option value="hero_champion"{% if form_values['wild_slot_mode'] == 'hero_champion' %} selected{% endif %}>Hero / Champion</option>
+                            </select>
+                        </div>
+
                         {{ count_select('spell_count', 'Spell count', 8) }}
                         {{ count_select('building_count', 'Building count', 8) }}
 
                         <div class="constraint-field">
-                            <label for="min_average_elixir">Minimum average elixir</label>
+                            <label for="min_average_elixir">Deck average elixir — minimum</label>
                             <input
                                 id="min_average_elixir"
                                 name="min_average_elixir"
@@ -53,7 +76,7 @@
                         </div>
 
                         <div class="constraint-field">
-                            <label for="max_average_elixir">Maximum average elixir</label>
+                            <label for="max_average_elixir">Deck average elixir — maximum</label>
                             <input
                                 id="max_average_elixir"
                                 name="max_average_elixir"
@@ -64,6 +87,10 @@
                             >
                         </div>
                     </div>
+                    <p class="constraint-help">
+                        Limits the average cost of the entire 8-card deck,
+                        not individual card costs.
+                    </p>
                 </fieldset>
 
                 <button type="submit" class="generate-button">
@@ -81,6 +108,22 @@
             <section class="deck-section">
 
                 <h2>Your Deck</h2>
+
+                <dl class="slot-summary" aria-label="Special slots">
+                    {% for slot in deck_summary['special_slots'] %}
+                        <div>
+                            <dt>
+                                {% if slot['role'] == 'evolution' %}Evolution Slot
+                                {% elif slot['role'] == 'hero' %}Hero Slot
+                                {% else %}Wild Slot{% endif %}
+                            </dt>
+                            <dd>
+                                {% if slot['form'] == 'normal' %}Off
+                                {% else %}{{ slot['form']|replace('_', ' ')|title }}{% endif %}
+                            </dd>
+                        </div>
+                    {% endfor %}
+                </dl>
 
                 <dl class="deck-summary" aria-label="Deck summary">
                     <div>
@@ -144,9 +187,11 @@
 
                                 <h3>{{ slot.card.name }}</h3>
 
-                                <span class="active-form">
-                                    {{ slot.active_form.value|capitalize }}
-                                </span>
+                                {% if slot.active_form.value != 'normal' %}
+                                    <span class="active-form">
+                                        {{ slot.active_form.value|capitalize }}
+                                    </span>
+                                {% endif %}
 
                                 <div class="card-details">
 
@@ -168,6 +213,10 @@
                     {% endfor %}
 
                 </div>
+
+                {% if wild_form_notice %}
+                    <p class="wild-form-notice">{{ wild_form_notice }}</p>
+                {% endif %}
 
                 <a href="{{ deck_link }}" class="open-game-button">
                     Open in Clash Royale

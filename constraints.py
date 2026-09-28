@@ -1,14 +1,16 @@
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 
-from card_model import CardType, card_type, has_evolution, has_hero, is_champion
+from card_model import CardType, WildSlotMode, card_type, is_champion
 
 
 MIRROR_ID = 28000006
 
 
 class ConstraintError(ValueError):
-    pass
+    def __init__(self, message, *, code="invalid_constraints"):
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -16,8 +18,9 @@ class DeckConstraints:
     available_ids: frozenset[int] | None = None
     banned_ids: frozenset[int] = frozenset()
     required_ids: frozenset[int] = frozenset()
-    evolution_count: int | None = None
-    hero_champion_count: int | None = None
+    evolution_slot_enabled: bool = True
+    hero_slot_enabled: bool = True
+    wild_slot_mode: WildSlotMode = WildSlotMode.EVOLUTION
     spell_count: int | None = None
     building_count: int | None = None
     min_average_elixir: float | None = None
@@ -62,15 +65,6 @@ def _elixir_total_bounds(constraints):
     return min_total, max_total
 
 
-def validate_special_count(name, value):
-    if value is not None and (
-        not isinstance(value, int)
-        or isinstance(value, bool)
-        or value not in range(3)
-    ):
-        raise ConstraintError(f"{name} must be None, 0, 1, or 2")
-
-
 def _validate_type_count(name, value):
     if value is not None and (
         not isinstance(value, int)
@@ -78,10 +72,6 @@ def _validate_type_count(name, value):
         or value not in range(9)
     ):
         raise ConstraintError(f"{name} must be None or an integer from 0 to 8")
-
-
-def _hero_capable(card):
-    return has_hero(card) or is_champion(card)
 
 
 def validate_constraints(cards, constraints):
@@ -132,10 +122,12 @@ def validate_constraints(cards, constraints):
             "at least 8 are required"
         )
 
-    validate_special_count("evolution_count", constraints.evolution_count)
-    validate_special_count(
-        "hero_champion_count", constraints.hero_champion_count
-    )
+    if not isinstance(constraints.evolution_slot_enabled, bool):
+        raise ConstraintError("evolution_slot_enabled must be a boolean")
+    if not isinstance(constraints.hero_slot_enabled, bool):
+        raise ConstraintError("hero_slot_enabled must be a boolean")
+    if not isinstance(constraints.wild_slot_mode, WildSlotMode):
+        raise ConstraintError("wild_slot_mode must be a WildSlotMode")
     _validate_type_count("spell_count", constraints.spell_count)
     _validate_type_count("building_count", constraints.building_count)
     _validate_average("min_average_elixir", constraints.min_average_elixir)
@@ -146,7 +138,8 @@ def validate_constraints(cards, constraints):
         and constraints.min_average_elixir > constraints.max_average_elixir
     ):
         raise ConstraintError(
-            "min_average_elixir cannot be greater than max_average_elixir"
+            "min_average_elixir cannot be greater than max_average_elixir",
+            code="average_min_greater_than_max",
         )
     min_total, max_total = _elixir_total_bounds(constraints)
     if (
@@ -165,17 +158,8 @@ def validate_constraints(cards, constraints):
         raise ConstraintError(
             f"spell_count={constraints.spell_count} and "
             f"building_count={constraints.building_count} cannot fit in "
-            "an 8-card deck"
-        )
-    if (
-        constraints.evolution_count is not None
-        and constraints.hero_champion_count is not None
-        and constraints.evolution_count + constraints.hero_champion_count > 3
-    ):
-        raise ConstraintError(
-            f"{constraints.evolution_count} Evolutions and "
-            f"{constraints.hero_champion_count} Hero/Champions require "
-            "4 special forms, but only 3 slots are available"
+            "an 8-card deck",
+            code="type_counts_exceed_deck_size",
         )
 
     average_is_active = min_total is not None or max_total is not None
@@ -194,26 +178,21 @@ def validate_constraints(cards, constraints):
                 "excluding Mirror; at least 8 are required"
             )
 
-    if constraints.evolution_count is not None:
-        available_evolutions = sum(map(has_evolution, eligible_cards))
-        if available_evolutions < constraints.evolution_count:
-            raise ConstraintError(
-                f"only {available_evolutions} Evolution-capable card is "
-                f"available, but {constraints.evolution_count} were requested"
-            )
-    if constraints.hero_champion_count is not None:
-        available_heroes = sum(map(_hero_capable, eligible_cards))
-        if available_heroes < constraints.hero_champion_count:
-            raise ConstraintError(
-                f"only {available_heroes} Hero/Champion card is available, "
-                f"but {constraints.hero_champion_count} were requested"
-            )
-
     type_constraints = (
-        (CardType.SPELL, "Spell", constraints.spell_count),
-        (CardType.BUILDING, "Building", constraints.building_count),
+        (
+            CardType.SPELL,
+            "Spell",
+            constraints.spell_count,
+            "not_enough_spells",
+        ),
+        (
+            CardType.BUILDING,
+            "Building",
+            constraints.building_count,
+            "not_enough_buildings",
+        ),
     )
-    for kind, label, requested in type_constraints:
+    for kind, label, requested, error_code in type_constraints:
         if requested is None:
             continue
         available_count = sum(
@@ -222,7 +201,8 @@ def validate_constraints(cards, constraints):
         if available_count < requested:
             raise ConstraintError(
                 f"only {available_count} {label} is available, "
-                f"but {requested} were requested"
+                f"but {requested} were requested",
+                code=error_code,
             )
         required_count = sum(
             card_type(catalog_by_id[card_id]) is kind
@@ -238,13 +218,14 @@ def validate_constraints(cards, constraints):
         is_champion(catalog_by_id[card_id])
         for card_id in constraints.required_ids
     )
-    if (
-        constraints.hero_champion_count is not None
-        and required_champions > constraints.hero_champion_count
-    ):
+    champion_slots = int(constraints.hero_slot_enabled) + int(
+        constraints.wild_slot_mode is WildSlotMode.HERO_CHAMPION
+    )
+    if required_champions > champion_slots:
         raise ConstraintError(
             f"{required_champions} required Champions cannot fit in "
-            f"{constraints.hero_champion_count} requested Hero/Champion slots"
+            f"{champion_slots} active Hero/Champion slots",
+            code="required_champion_needs_slot",
         )
 
     if average_is_active:

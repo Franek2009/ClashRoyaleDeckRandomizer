@@ -77,3 +77,13 @@ def test_cards_snapshot_is_compatible_with_application():
     assert non_champion_count + min(
         sum(is_champion(card) for card in cards), 2
     ) >= 8
+
+
+def test_current_card_type_overrides_match_snapshot():
+    with CARDS_PATH.open(encoding="utf-8") as file:
+        cards = {card["id"]: card for card in json.load(file)["items"]}
+
+    assert card_type(cards[28000025]) is CardType.TROOP
+    assert cards[28000025]["name"] == "Spirit Empress"
+    assert card_type(cards[27000010]) is CardType.TROOP
+    assert cards[27000010]["name"] == "Furnace"

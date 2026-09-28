@@ -8,26 +8,59 @@ from randomizer import (
     CardType,
     ConstraintError,
     DeckConstraints,
+    WildSlotMode,
     arrange_deck,
     average_elixir,
     card_type,
     get_random_deck,
+    has_evolution,
+    has_hero,
 )
 
 
 app = Flask(__name__)
 
 COUNT_FIELDS = (
-    "evolution_count",
-    "hero_champion_count",
     "spell_count",
     "building_count",
 )
+SLOT_FIELDS = (
+    "evolution_slot_enabled",
+    "hero_slot_enabled",
+    "wild_slot_mode",
+)
 AVERAGE_FIELDS = ("min_average_elixir", "max_average_elixir")
+
+FRIENDLY_ERRORS = {
+    "type_counts_exceed_deck_size": (
+        "You selected more card types than can fit in an 8-card deck. "
+        "Reduce one of the values."
+    ),
+    "not_enough_spells": (
+        "There aren't enough available Spell cards to build this deck."
+    ),
+    "not_enough_buildings": (
+        "There aren't enough available Building cards to build this deck."
+    ),
+    "required_champion_needs_slot": (
+        "A required Champion needs either the Hero Slot or the Wild Slot "
+        "set to Hero / Champion."
+    ),
+    "average_min_greater_than_max": (
+        "Minimum deck average cannot be greater than maximum deck average."
+    ),
+    "constraints_not_feasible": (
+        "These slot and deck constraints cannot be satisfied together. "
+        "Try relaxing one of the selections."
+    ),
+}
 
 
 def _default_form_values():
     return {
+        "evolution_slot_enabled": "on",
+        "hero_slot_enabled": "on",
+        "wild_slot_mode": WildSlotMode.EVOLUTION.value,
         **{field: "any" for field in COUNT_FIELDS},
         **{field: "" for field in AVERAGE_FIELDS},
     }
@@ -53,8 +86,18 @@ def _parse_optional_float(field, value):
         raise ConstraintError(f"{field} must be a number") from error
 
 
+def _parse_wild_mode(value):
+    try:
+        return WildSlotMode(value)
+    except ValueError as error:
+        raise ConstraintError("wild_slot_mode is invalid") from error
+
+
 def _constraints_from_form(form_values):
     return DeckConstraints(
+        evolution_slot_enabled=form_values["evolution_slot_enabled"] == "on",
+        hero_slot_enabled=form_values["hero_slot_enabled"] == "on",
+        wild_slot_mode=_parse_wild_mode(form_values["wild_slot_mode"]),
         **{
             field: _parse_optional_int(field, form_values[field])
             for field in COUNT_FIELDS
@@ -89,6 +132,13 @@ def _deck_summary(deck, arranged_deck):
             card_type(card) is CardType.BUILDING for card in deck
         ),
         "average_elixir": average_display,
+        "special_slots": [
+            {
+                "role": slot.role.value,
+                "form": slot.active_form.value,
+            }
+            for slot in arranged_deck[:3]
+        ],
     }
 
 
@@ -109,7 +159,7 @@ def generate():
     defaults = _default_form_values()
     form_values = {
         field: request.form.get(field, defaults[field])
-        for field in (*COUNT_FIELDS, *AVERAGE_FIELDS)
+        for field in (*SLOT_FIELDS, *COUNT_FIELDS, *AVERAGE_FIELDS)
     }
 
     with open("cards.json", encoding="utf-8") as file:
@@ -122,17 +172,30 @@ def generate():
     except ConstraintError as error:
         return render_template(
             "index.html",
-            error_message=str(error),
+            error_message=FRIENDLY_ERRORS.get(error.code, str(error)),
             form_values=form_values,
         )
 
     deck_link = generate_deck_link(arranged_deck)
+    wild_card = arranged_deck[2].card
+    wild_form_notice = None
+    if has_evolution(wild_card) and has_hero(wild_card):
+        selected_form = (
+            "Evolution"
+            if constraints.wild_slot_mode is WildSlotMode.EVOLUTION
+            else "Hero"
+        )
+        wild_form_notice = (
+            "After importing the deck, select the "
+            f"{selected_form} form for the Wild Slot in Clash Royale."
+        )
 
     return render_template(
         "index.html",
         deck=arranged_deck,
         deck_link=deck_link,
         deck_summary=_deck_summary(random_deck, arranged_deck),
+        wild_form_notice=wild_form_notice,
         form_values=form_values,
     )
 

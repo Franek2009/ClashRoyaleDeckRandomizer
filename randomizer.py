@@ -1,5 +1,4 @@
 import random
-from itertools import combinations
 
 from card_model import (
     EVOLUTION_BIT,
@@ -8,7 +7,9 @@ from card_model import (
     CardType,
     DeckSlot,
     SlotRole,
+    WildSlotMode,
     card_type,
+    effective_form,
     has_evolution,
     has_hero,
     is_champion,
@@ -19,7 +20,6 @@ from constraints import (
     _elixir_total_bounds,
     average_elixir,
     validate_constraints,
-    validate_special_count,
 )
 
 
@@ -27,84 +27,57 @@ def _hero_capable(card):
     return has_hero(card) or is_champion(card)
 
 
-def _find_special_assignment(
-    eligible_cards,
-    required_ids,
-    evolution_count,
-    hero_champion_count,
-):
-    evolution_cards = [card for card in eligible_cards if has_evolution(card)]
-    hero_cards = [card for card in eligible_cards if _hero_capable(card)]
-    required_champion_ids = {
-        card["id"]
-        for card in eligible_cards
-        if card["id"] in required_ids and is_champion(card)
-    }
-
-    for heroes in combinations(hero_cards, hero_champion_count):
-        hero_ids = {card["id"] for card in heroes}
-        if not required_champion_ids <= hero_ids:
-            continue
-
-        available_evolutions = [
-            card for card in evolution_cards if card["id"] not in hero_ids
-        ]
-        for evolutions in combinations(
-            available_evolutions, evolution_count
-        ):
-            active_cards = (*evolutions, *heroes)
-            active_ids = {card["id"] for card in active_cards}
-            selected_ids = required_ids | active_ids
-            if len(selected_ids) > 8:
-                continue
-
-            allowed_fillers = [
-                card
-                for card in eligible_cards
-                if not is_champion(card) or card["id"] in hero_ids
-            ]
-            if len(allowed_fillers) < 8:
-                continue
-            return list(evolutions), list(heroes)
-    return None
-
-
-def _count_options(constraints):
-    options = [
-        (1, 2),
-        (2, 1),
-        (2, 0),
-        (1, 1),
-        (0, 2),
-        (1, 0),
-        (0, 1),
-        (0, 0),
+def _type_targets(constraints):
+    spell_targets = (
+        [constraints.spell_count]
+        if constraints.spell_count is not None
+        else range(9)
+    )
+    building_targets = (
+        [constraints.building_count]
+        if constraints.building_count is not None
+        else range(9)
+    )
+    targets = [
+        {
+            CardType.SPELL: spells,
+            CardType.BUILDING: buildings,
+            CardType.TROOP: 8 - spells - buildings,
+        }
+        for spells in spell_targets
+        for buildings in building_targets
+        if spells + buildings <= 8
     ]
-    return [
-        (evolution_count, hero_count)
-        for evolution_count, hero_count in options
-        if constraints.evolution_count in (None, evolution_count)
-        and constraints.hero_champion_count in (None, hero_count)
-    ]
+    random.shuffle(targets)
+    return targets
 
 
-def _resolve_special_assignment(cards, required_ids, constraints):
-    for evolution_count, hero_count in _count_options(constraints):
-        assignment = _find_special_assignment(
-            cards,
-            required_ids,
-            evolution_count,
-            hero_count,
-        )
-        if assignment is not None:
-            return assignment
-    return None
+def _card_allowed_for_slot(card, role, constraints):
+    if role is SlotRole.EVOLUTION:
+        if is_champion(card):
+            return False
+        if constraints.evolution_slot_enabled:
+            return has_evolution(card)
+        return not has_evolution(card)
+    if role is SlotRole.HERO:
+        if constraints.hero_slot_enabled:
+            return _hero_capable(card)
+        return not _hero_capable(card)
+    if role is SlotRole.WILD:
+        if constraints.wild_slot_mode is WildSlotMode.EVOLUTION:
+            return has_evolution(card) and not is_champion(card)
+        if constraints.wild_slot_mode is WildSlotMode.HERO_CHAMPION:
+            return _hero_capable(card)
+        return not has_evolution(card) and not _hero_capable(card)
+    return not is_champion(card)
 
 
 def _select_elixir_fillers(candidates_by_type, needed, chosen_total, bounds):
     candidates = [
         card
-        for kind in CardType
+        for kind in sorted(
+            CardType, key=lambda item: len(candidates_by_type[item])
+        )
         for card in candidates_by_type[kind]
         if needed[kind]
     ]
@@ -180,169 +153,240 @@ def _select_elixir_fillers(candidates_by_type, needed, chosen_total, bounds):
     return search(0, dict(needed), chosen_total, [])
 
 
-def _complete_deck(eligible_cards, required_ids, evolutions, heroes, constraints):
-    chosen_by_id = {
-        card["id"]: card for card in (*evolutions, *heroes)
-    }
-    catalog_by_id = {card["id"]: card for card in eligible_cards}
-    chosen_by_id.update(
-        (card_id, catalog_by_id[card_id]) for card_id in required_ids
-    )
-    if len(chosen_by_id) > 8:
+def _select_untyped_elixir_fillers(candidates, needed, chosen_total, bounds):
+    candidates = list(candidates)
+    random.shuffle(candidates)
+    min_total, max_total = bounds
+    failed_states = set()
+
+    def search(index, remaining, total, selected):
+        state = (index, remaining, total)
+        if state in failed_states:
+            return None
+        if remaining == 0:
+            if (min_total is None or total >= min_total) and (
+                max_total is None or total <= max_total
+            ):
+                return list(selected)
+            failed_states.add(state)
+            return None
+        if len(candidates) - index < remaining:
+            failed_states.add(state)
+            return None
+
+        costs = sorted(card["elixirCost"] for card in candidates[index:])
+        if (max_total is not None and total + sum(costs[:remaining]) > max_total) or (
+            min_total is not None
+            and total + sum(costs[-remaining:]) < min_total
+        ):
+            failed_states.add(state)
+            return None
+
+        card = candidates[index]
+        selected.append(card)
+        result = search(
+            index + 1,
+            remaining - 1,
+            total + card["elixirCost"],
+            selected,
+        )
+        if result is not None:
+            return result
+        selected.pop()
+        result = search(index + 1, remaining, total, selected)
+        if result is not None:
+            return result
+        failed_states.add(state)
         return None
 
-    hero_ids = {card["id"] for card in heroes}
-    candidates = [
-        card
-        for card in eligible_cards
-        if card["id"] not in chosen_by_id
-        and (not is_champion(card) or card["id"] in hero_ids)
-    ]
-    chosen = list(chosen_by_id.values())
-    elixir_bounds = _elixir_total_bounds(constraints)
-    average_is_active = any(bound is not None for bound in elixir_bounds)
-    if (
-        constraints.spell_count is None
-        and constraints.building_count is None
-        and not average_is_active
-    ):
-        needed = 8 - len(chosen)
-        if len(candidates) < needed:
-            return None
-        completed = chosen + random.sample(candidates, needed)
-        return random.sample(completed, len(completed))
+    return search(0, needed, chosen_total, [])
 
+
+def _complete_ordered_deck(
+    eligible_cards, slot_cards, target_counts, constraints
+):
+    slot_ids = {card["id"] for card in slot_cards}
+    catalog_by_id = {card["id"]: card for card in eligible_cards}
+    required_normal = [
+        catalog_by_id[card_id]
+        for card_id in constraints.required_ids - slot_ids
+    ]
+    if any(is_champion(card) for card in required_normal):
+        return None
+
+    normal_cards = list(required_normal)
+    chosen_ids = slot_ids | {card["id"] for card in normal_cards}
+    if len(chosen_ids) > 8:
+        return None
+    chosen = [*slot_cards, *normal_cards]
     chosen_counts = {
         kind: sum(card_type(card) is kind for card in chosen)
         for kind in CardType
     }
+    needed = {
+        kind: target_counts[kind] - chosen_counts[kind]
+        for kind in CardType
+    }
+    if any(count < 0 for count in needed.values()) or sum(needed.values()) != (
+        8 - len(chosen)
+    ):
+        return None
+
+    candidates = [
+        card
+        for card in eligible_cards
+        if card["id"] not in chosen_ids and not is_champion(card)
+    ]
     candidates_by_type = {
         kind: [card for card in candidates if card_type(card) is kind]
         for kind in CardType
     }
+    if any(
+        needed[kind] > len(candidates_by_type[kind]) for kind in CardType
+    ):
+        return None
 
-    spell_targets = (
-        [constraints.spell_count]
-        if constraints.spell_count is not None
-        else list(range(9))
-    )
-    building_targets = (
-        [constraints.building_count]
-        if constraints.building_count is not None
-        else list(range(9))
-    )
-    target_pairs = [
-        (spells, buildings)
-        for spells in spell_targets
-        for buildings in building_targets
-        if spells + buildings <= 8
-    ]
-    random.shuffle(target_pairs)
-
-    for spell_target, building_target in target_pairs:
-        targets = {
-            CardType.SPELL: spell_target,
-            CardType.BUILDING: building_target,
-            CardType.TROOP: 8 - spell_target - building_target,
-        }
-        needed = {
-            kind: targets[kind] - chosen_counts[kind] for kind in CardType
-        }
-        if any(count < 0 for count in needed.values()):
-            continue
-        if any(
-            needed[kind] > len(candidates_by_type[kind])
-            for kind in CardType
-        ):
-            continue
-
-        completed = list(chosen)
-        if average_is_active:
-            fillers = _select_elixir_fillers(
-                candidates_by_type,
-                needed,
-                sum(card["elixirCost"] for card in chosen),
-                elixir_bounds,
+    bounds = _elixir_total_bounds(constraints)
+    if any(bound is not None for bound in bounds):
+        fillers = _select_elixir_fillers(
+            candidates_by_type,
+            needed,
+            sum(card["elixirCost"] for card in chosen),
+            bounds,
+        )
+        if fillers is None:
+            return None
+    else:
+        fillers = []
+        for kind in CardType:
+            fillers.extend(
+                random.sample(candidates_by_type[kind], needed[kind])
             )
-            if fillers is None:
-                continue
-            completed.extend(fillers)
-        else:
-            for kind in CardType:
-                completed.extend(
-                    random.sample(candidates_by_type[kind], needed[kind])
-                )
-        return random.sample(completed, len(completed))
-    return None
+
+    normal_cards.extend(fillers)
+    random.shuffle(normal_cards)
+    return [*slot_cards, *normal_cards]
 
 
-def _resolve_constrained_deck(eligible_cards, required_ids, constraints):
-    for evolution_count, hero_count in _count_options(constraints):
-        evolution_cards = [
-            card for card in eligible_cards if has_evolution(card)
-        ]
-        hero_cards = [card for card in eligible_cards if _hero_capable(card)]
-        required_champion_ids = {
-            card["id"]
+def _complete_untyped_ordered_deck(eligible_cards, slot_cards, constraints):
+    slot_ids = {card["id"] for card in slot_cards}
+    catalog_by_id = {card["id"]: card for card in eligible_cards}
+    required_normal = [
+        catalog_by_id[card_id]
+        for card_id in constraints.required_ids - slot_ids
+    ]
+    if any(is_champion(card) for card in required_normal):
+        return None
+    chosen_ids = slot_ids | {card["id"] for card in required_normal}
+    candidates = [
+        card
+        for card in eligible_cards
+        if card["id"] not in chosen_ids and not is_champion(card)
+    ]
+    needed = 5 - len(required_normal)
+    if needed < 0 or len(candidates) < needed:
+        return None
+    bounds = _elixir_total_bounds(constraints)
+    if any(bound is not None for bound in bounds):
+        fillers = _select_untyped_elixir_fillers(
+            candidates,
+            needed,
+            sum(card["elixirCost"] for card in [*slot_cards, *required_normal]),
+            bounds,
+        )
+        if fillers is None:
+            return None
+    else:
+        fillers = random.sample(candidates, needed)
+    normal_cards = [*required_normal, *fillers]
+    random.shuffle(normal_cards)
+    return [*slot_cards, *normal_cards]
+
+
+def _resolve_constrained_deck(eligible_cards, constraints):
+    roles = (SlotRole.EVOLUTION, SlotRole.HERO, SlotRole.WILD)
+    candidates_by_role = {
+        role: [
+            card
             for card in eligible_cards
-            if card["id"] in required_ids and is_champion(card)
-        }
+            if _card_allowed_for_slot(card, role, constraints)
+        ]
+        for role in roles
+    }
+    for cards in candidates_by_role.values():
+        random.shuffle(cards)
 
-        for heroes in combinations(hero_cards, hero_count):
-            hero_ids = {card["id"] for card in heroes}
-            if not required_champion_ids <= hero_ids:
-                continue
-            available_evolutions = [
-                card
-                for card in evolution_cards
-                if card["id"] not in hero_ids
-            ]
-            for evolutions in combinations(
-                available_evolutions, evolution_count
-            ):
-                deck = _complete_deck(
-                    eligible_cards,
-                    required_ids,
-                    evolutions,
-                    heroes,
-                    constraints,
+    bounds = _elixir_total_bounds(constraints)
+    if constraints.spell_count is None and constraints.building_count is None:
+        def choose_untyped_slots(index, selected):
+            if index == len(roles):
+                return _complete_untyped_ordered_deck(
+                    eligible_cards, selected, constraints
                 )
-                if deck is not None:
-                    return deck
+            role = roles[index]
+            selected_ids = {card["id"] for card in selected}
+            for card in candidates_by_role[role]:
+                if card["id"] in selected_ids:
+                    continue
+                result = choose_untyped_slots(index + 1, [*selected, card])
+                if result is not None:
+                    return result
+            return None
+
+        return choose_untyped_slots(0, [])
+
+    for target_counts in _type_targets(constraints):
+        def choose_slots(index, selected, remaining_counts):
+            if index == len(roles):
+                return _complete_ordered_deck(
+                    eligible_cards, selected, target_counts, constraints
+                )
+
+            role = roles[index]
+            selected_ids = {card["id"] for card in selected}
+            candidates = [
+                card
+                for card in candidates_by_role[role]
+                if card["id"] not in selected_ids
+                and remaining_counts[card_type(card)] > 0
+            ]
+            for card in candidates:
+                kind = card_type(card)
+                remaining_counts[kind] -= 1
+                result = choose_slots(
+                    index + 1, [*selected, card], remaining_counts
+                )
+                remaining_counts[kind] += 1
+                if result is not None:
+                    return result
+            return None
+
+        deck = choose_slots(0, [], dict(target_counts))
+        if deck is not None:
+            return deck
     return None
 
 
 def _prepare_constraints(cards, constraints):
     eligible_cards = validate_constraints(cards, constraints)
-
-    deck = _resolve_constrained_deck(
-        eligible_cards, constraints.required_ids, constraints
-    )
+    deck = _resolve_constrained_deck(eligible_cards, constraints)
     if deck is not None:
         return eligible_cards, deck
-
-    if constraints.spell_count is None and constraints.building_count is None:
-        raise ConstraintError(
-            "requested special forms cannot be assigned to distinct cards "
-            "in an 8-card deck"
-        )
     raise ConstraintError(
-        "requested card types and special forms cannot be assigned to "
-        "a valid 8-card deck"
+        "requested slot, card type, and elixir constraints cannot produce "
+        "a valid 8-card deck",
+        code="constraints_not_feasible",
     )
 
 
 def get_random_deck(cards, constraints=None):
     if constraints is not None:
-        eligible_cards, deck = _prepare_constraints(
-            cards, constraints
-        )
+        eligible_cards, deck = _prepare_constraints(cards, constraints)
         _validate_generated_deck(deck, eligible_cards, constraints)
         return deck
 
     chosen_cards = []
     evolution_cards = [card for card in cards if has_evolution(card)]
-
     chosen_cards.extend(random.sample(evolution_cards, 2))
 
     champion_count = sum(is_champion(card) for card in chosen_cards)
@@ -359,37 +403,42 @@ def get_random_deck(cards, constraints=None):
     return chosen_cards
 
 
-def _validate_generated_deck(deck, eligible_cards, constraints):
-    deck_ids = {card["id"] for card in deck}
-    if len(deck) != 8 or len(deck_ids) != 8:
-        raise ConstraintError("generated deck must contain 8 unique cards")
-    if not constraints.required_ids <= deck_ids:
-        raise ConstraintError("generated deck is missing a required card")
-    if deck_ids & constraints.banned_ids:
-        raise ConstraintError("generated deck contains a banned card")
-    if not deck_ids <= {card["id"] for card in eligible_cards}:
-        raise ConstraintError("generated deck contains an unavailable card")
-
-    arranged = arrange_deck(deck, constraints)
-    active_evolutions = sum(
+def _slot_active_counts(arranged):
+    evolutions = sum(
         slot.active_form is ActiveForm.EVOLUTION for slot in arranged
     )
-    active_heroes = sum(
+    heroes = sum(
         slot.active_form in {ActiveForm.HERO, ActiveForm.CHAMPION}
         for slot in arranged
     )
-    if (
-        constraints.evolution_count is not None
-        and active_evolutions != constraints.evolution_count
-    ):
-        raise ConstraintError("generated deck has the wrong Evolution count")
-    if (
-        constraints.hero_champion_count is not None
-        and active_heroes != constraints.hero_champion_count
-    ):
-        raise ConstraintError(
-            "generated deck has the wrong Hero/Champion count"
+    return evolutions, heroes
+
+
+def _validate_generated_deck(deck, eligible_cards, constraints):
+    deck_ids = {card["id"] for card in deck}
+    if len(deck) != 8 or len(deck_ids) != 8:
+        raise RuntimeError("generated deck must contain 8 unique cards")
+    if not constraints.required_ids <= deck_ids:
+        raise RuntimeError("generated deck is missing a required card")
+    if deck_ids & constraints.banned_ids:
+        raise RuntimeError("generated deck contains a banned card")
+    if not deck_ids <= {card["id"] for card in eligible_cards}:
+        raise RuntimeError("generated deck contains an unavailable card")
+
+    arranged = arrange_deck(deck, constraints)
+    for slot in arranged:
+        expected = effective_form(
+            slot.card,
+            slot.role,
+            evolution_slot_enabled=constraints.evolution_slot_enabled,
+            hero_slot_enabled=constraints.hero_slot_enabled,
+            wild_slot_mode=constraints.wild_slot_mode,
         )
+        if slot.active_form is not expected:
+            raise RuntimeError("generated deck has an inconsistent active form")
+    for slot in arranged[:3]:
+        if not _card_allowed_for_slot(slot.card, slot.role, constraints):
+            raise RuntimeError("generated deck has an unsafe special slot")
 
     for kind, requested in (
         (CardType.SPELL, constraints.spell_count),
@@ -398,17 +447,13 @@ def _validate_generated_deck(deck, eligible_cards, constraints):
         if requested is not None and sum(
             card_type(card) is kind for card in deck
         ) != requested:
-            raise ConstraintError(
-                f"generated deck has the wrong {kind.value} count"
-            )
+            raise RuntimeError(f"generated deck has the wrong {kind.value} count")
 
     min_total, max_total = _elixir_total_bounds(constraints)
     if min_total is not None or max_total is not None:
         average = average_elixir(deck)
         if average is None:
-            raise RuntimeError(
-                "generated deck has no static average elixir"
-            )
+            raise RuntimeError("generated deck has no static average elixir")
         total = sum(card["elixirCost"] for card in deck)
         if (min_total is not None and total < min_total) or (
             max_total is not None and total > max_total
@@ -418,101 +463,102 @@ def _validate_generated_deck(deck, eligible_cards, constraints):
             )
 
 
-def _take_first(cards, predicate):
-    for index, card in enumerate(cards):
-        if predicate(card):
-            return cards.pop(index)
-    return None
+def _legacy_arrange_deck(deck):
+    remaining = list(deck)
+    evolution_card = next(
+        (card for card in remaining if has_evolution(card)), remaining[0]
+    )
+    remaining.remove(evolution_card)
+    hero_card = next(
+        (card for card in remaining if _hero_capable(card)), remaining[0]
+    )
+    remaining.remove(hero_card)
+    wild_card = next(
+        (card for card in remaining if _hero_capable(card)),
+        next(
+            (card for card in remaining if has_evolution(card)),
+            remaining[0],
+        ),
+    )
+    remaining.remove(wild_card)
+    if _hero_capable(wild_card):
+        wild_form = (
+            ActiveForm.CHAMPION
+            if is_champion(wild_card)
+            else ActiveForm.HERO
+        )
+    elif has_evolution(wild_card):
+        wild_form = ActiveForm.EVOLUTION
+    else:
+        wild_form = ActiveForm.NORMAL
+    return [
+        DeckSlot(
+            evolution_card,
+            SlotRole.EVOLUTION,
+            ActiveForm.EVOLUTION
+            if has_evolution(evolution_card)
+            else ActiveForm.NORMAL,
+        ),
+        DeckSlot(
+            hero_card,
+            SlotRole.HERO,
+            ActiveForm.CHAMPION
+            if is_champion(hero_card)
+            else (
+                ActiveForm.HERO
+                if has_hero(hero_card)
+                else ActiveForm.NORMAL
+            ),
+        ),
+        DeckSlot(wild_card, SlotRole.WILD, wild_form),
+        *[
+            DeckSlot(card, SlotRole.NORMAL, ActiveForm.NORMAL)
+            for card in remaining
+        ],
+    ]
 
 
-def _hero_form(card):
-    if is_champion(card):
-        return ActiveForm.CHAMPION
-    return ActiveForm.HERO
+def _arrange_ordered_deck(deck, constraints, *, validate_safety=True):
+    roles = [
+        SlotRole.EVOLUTION,
+        SlotRole.HERO,
+        SlotRole.WILD,
+        *([SlotRole.NORMAL] * 5),
+    ]
+    arranged = []
+    for card, role in zip(deck, roles):
+        if (
+            validate_safety
+            and role is not SlotRole.NORMAL
+            and not _card_allowed_for_slot(card, role, constraints)
+        ):
+            raise ConstraintError(
+                f"card {card['id']} is not valid for the {role.value} slot",
+                code="invalid_slot_assignment",
+            )
+        active = effective_form(
+            card,
+            role,
+            evolution_slot_enabled=constraints.evolution_slot_enabled,
+            hero_slot_enabled=constraints.hero_slot_enabled,
+            wild_slot_mode=constraints.wild_slot_mode,
+        )
+        arranged.append(DeckSlot(card, role, active))
+    return arranged
 
 
 def arrange_deck(deck, constraints=None):
-    """Assign eight unique cards to the current Evo, Hero and Wild slots."""
+    """Map an ordered eight-card deck to its three physical special slots."""
     if len(deck) != 8:
         raise ValueError("a Clash Royale deck must contain exactly eight cards")
-
     card_ids = [card["id"] for card in deck]
     if len(card_ids) != len(set(card_ids)):
         raise ValueError("a Clash Royale deck cannot contain duplicate cards")
-
-    effective_constraints = constraints or DeckConstraints()
-    missing_required = effective_constraints.required_ids - set(card_ids)
+    if constraints is None:
+        return _legacy_arrange_deck(deck)
+    missing_required = constraints.required_ids - set(card_ids)
     if missing_required:
         raise ConstraintError(
             f"required card {min(missing_required)} is not in the deck"
         )
-    validate_special_count(
-        "evolution_count", effective_constraints.evolution_count
-    )
-    validate_special_count(
-        "hero_champion_count",
-        effective_constraints.hero_champion_count,
-    )
-    if (
-        effective_constraints.evolution_count is not None
-        and effective_constraints.hero_champion_count is not None
-        and effective_constraints.evolution_count
-        + effective_constraints.hero_champion_count
-        > 3
-    ):
-        raise ConstraintError("requested special forms exceed 3 slots")
-    assignment = _resolve_special_assignment(
-        deck, effective_constraints.required_ids, effective_constraints
-    )
-    if assignment is None:
-        raise ConstraintError(
-            "requested special forms cannot be assigned to distinct cards"
-        )
-    evolutions, heroes = assignment
-    remaining = list(deck)
-    arranged = []
-
-    active_evolutions = [
-        _take_first(
-            remaining,
-            lambda card, card_id=active["id"]: card["id"] == card_id,
-        )
-        for active in evolutions
-    ]
-    active_heroes = [
-        _take_first(remaining, lambda card, card_id=active["id"]: card["id"] == card_id)
-        for active in heroes
-    ]
-
-    evolution_card = (
-        active_evolutions.pop(0) if active_evolutions else remaining.pop(0)
-    )
-    evolution_form = (
-        ActiveForm.EVOLUTION
-        if has_evolution(evolution_card) and evolution_card in evolutions
-        else ActiveForm.NORMAL
-    )
-    arranged.append(DeckSlot(evolution_card, SlotRole.EVOLUTION, evolution_form))
-
-    hero_card = active_heroes.pop(0) if active_heroes else remaining.pop(0)
-    hero_form = (
-        _hero_form(hero_card) if hero_card in heroes else ActiveForm.NORMAL
-    )
-    arranged.append(DeckSlot(hero_card, SlotRole.HERO, hero_form))
-
-    if active_heroes:
-        wild_card = active_heroes.pop(0)
-        wild_form = _hero_form(wild_card)
-    elif active_evolutions:
-        wild_card = active_evolutions.pop(0)
-        wild_form = ActiveForm.EVOLUTION
-    else:
-        wild_card = remaining.pop(0)
-        wild_form = ActiveForm.NORMAL
-    arranged.append(DeckSlot(wild_card, SlotRole.WILD, wild_form))
-
-    arranged.extend(
-        DeckSlot(card, SlotRole.NORMAL, ActiveForm.NORMAL)
-        for card in remaining
-    )
-    return arranged
+    return _arrange_ordered_deck(deck, constraints)

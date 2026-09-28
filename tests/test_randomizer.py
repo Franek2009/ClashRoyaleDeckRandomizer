@@ -11,9 +11,11 @@ from randomizer import (
     DeckConstraints,
     DeckSlot,
     SlotRole,
+    WildSlotMode,
     arrange_deck,
     average_elixir,
     card_type,
+    effective_form,
     get_random_deck,
     has_evolution,
     has_hero,
@@ -109,6 +111,17 @@ def active_counts(arranged):
         for slot in arranged
     )
     return evolution_count, hero_count
+
+
+def configured_active_counts(constraints):
+    return (
+        int(constraints.evolution_slot_enabled)
+        + int(constraints.wild_slot_mode is WildSlotMode.EVOLUTION),
+        int(constraints.hero_slot_enabled)
+        + int(
+            constraints.wild_slot_mode is WildSlotMode.HERO_CHAMPION
+        ),
+    )
 
 
 @pytest.mark.parametrize(
@@ -375,8 +388,9 @@ def test_default_constraints_are_unrestricted():
     assert constraints.available_ids is None
     assert constraints.banned_ids == frozenset()
     assert constraints.required_ids == frozenset()
-    assert constraints.evolution_count is None
-    assert constraints.hero_champion_count is None
+    assert constraints.evolution_slot_enabled is True
+    assert constraints.hero_slot_enabled is True
+    assert constraints.wild_slot_mode is WildSlotMode.EVOLUTION
     assert constraints.spell_count is None
     assert constraints.building_count is None
     assert constraints.min_average_elixir is None
@@ -387,8 +401,9 @@ def test_available_none_uses_full_catalog():
     catalog = make_catalog()
     constraints = DeckConstraints(
         available_ids=None,
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
     deck = get_random_deck(catalog, constraints)
@@ -402,8 +417,9 @@ def test_limited_available_pool_is_respected():
     available_ids = frozenset(range(1, 11))
     constraints = DeckConstraints(
         available_ids=available_ids,
-        evolution_count=1,
-        hero_champion_count=1,
+        evolution_slot_enabled=True,
+        hero_slot_enabled=True,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
     deck = get_random_deck(catalog, constraints)
@@ -414,8 +430,9 @@ def test_limited_available_pool_is_respected():
 def test_banned_cards_are_excluded():
     constraints = DeckConstraints(
         banned_ids=frozenset({8, 9}),
-        evolution_count=1,
-        hero_champion_count=1,
+        evolution_slot_enabled=True,
+        hero_slot_enabled=True,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
     deck = get_random_deck(make_catalog(), constraints)
@@ -426,8 +443,9 @@ def test_banned_cards_are_excluded():
 def test_required_cards_are_included():
     constraints = DeckConstraints(
         required_ids=frozenset({1, 8, 9}),
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
     deck = get_random_deck(make_catalog(), constraints)
@@ -485,106 +503,148 @@ def test_effective_pool_smaller_than_eight_is_rejected():
         get_random_deck(make_catalog(), constraints)
 
 
-@pytest.mark.parametrize("evolution_count", [0, 1, 2])
-def test_exact_evolution_count_is_respected(evolution_count):
+@pytest.mark.parametrize(
+    ("evolution_enabled", "hero_enabled", "wild_mode", "counts"),
+    [
+        (False, False, WildSlotMode.OFF, (0, 0)),
+        (True, False, WildSlotMode.OFF, (1, 0)),
+        (False, True, WildSlotMode.OFF, (0, 1)),
+        (True, True, WildSlotMode.OFF, (1, 1)),
+        (True, False, WildSlotMode.EVOLUTION, (2, 0)),
+        (False, True, WildSlotMode.HERO_CHAMPION, (0, 2)),
+        (True, True, WildSlotMode.EVOLUTION, (2, 1)),
+        (True, True, WildSlotMode.HERO_CHAMPION, (1, 2)),
+        (False, False, WildSlotMode.EVOLUTION, (1, 0)),
+        (False, False, WildSlotMode.HERO_CHAMPION, (0, 1)),
+    ],
+)
+def test_slot_configuration_derives_active_counts(
+    evolution_enabled, hero_enabled, wild_mode, counts
+):
     constraints = DeckConstraints(
-        evolution_count=evolution_count,
-        hero_champion_count=0,
+        evolution_slot_enabled=evolution_enabled,
+        hero_slot_enabled=hero_enabled,
+        wild_slot_mode=wild_mode,
     )
 
     deck = get_random_deck(make_catalog(), constraints)
     arranged = arrange_deck(deck, constraints)
 
-    assert active_counts(arranged) == (evolution_count, 0)
-
-
-@pytest.mark.parametrize("hero_count", [0, 1, 2])
-def test_exact_hero_champion_count_is_respected(hero_count):
-    constraints = DeckConstraints(
-        evolution_count=0,
-        hero_champion_count=hero_count,
-    )
-
-    deck = get_random_deck(make_catalog(), constraints)
-    arranged = arrange_deck(deck, constraints)
-
-    assert active_counts(arranged) == (0, hero_count)
-
-
-@pytest.mark.parametrize("counts", [(2, 1), (1, 2)])
-def test_three_special_slots_support_valid_mixed_counts(counts):
-    constraints = DeckConstraints(
-        evolution_count=counts[0],
-        hero_champion_count=counts[1],
-    )
-
-    deck = get_random_deck(make_catalog(), constraints)
-    arranged = arrange_deck(deck, constraints)
-
+    assert [slot.role for slot in arranged[:3]] == [
+        SlotRole.EVOLUTION,
+        SlotRole.HERO,
+        SlotRole.WILD,
+    ]
     assert active_counts(arranged) == counts
+    for slot in arranged:
+        assert slot.active_form is effective_form(
+            slot.card,
+            slot.role,
+            evolution_slot_enabled=evolution_enabled,
+            hero_slot_enabled=hero_enabled,
+            wild_slot_mode=wild_mode,
+        )
 
 
-def test_two_evolutions_and_two_heroes_are_rejected():
-    constraints = DeckConstraints(
-        evolution_count=2, hero_champion_count=2
-    )
+def test_dual_form_card_uses_form_selected_by_physical_slot():
+    dual = make_card(5, has_evo=True, has_hero_form=True)
+    normal = [make_card(card_id) for card_id in range(8, 15)]
 
-    with pytest.raises(ConstraintError, match="only 3 slots"):
-        get_random_deck(make_catalog(), constraints)
-
-
-def test_too_few_evolution_capable_cards_are_rejected():
-    catalog = [make_card(1, has_evo=True)] + [
-        make_card(card_id) for card_id in range(2, 10)
+    cases = [
+        (SlotRole.EVOLUTION, WildSlotMode.OFF, ActiveForm.EVOLUTION),
+        (SlotRole.HERO, WildSlotMode.OFF, ActiveForm.HERO),
+        (SlotRole.WILD, WildSlotMode.EVOLUTION, ActiveForm.EVOLUTION),
+        (SlotRole.WILD, WildSlotMode.HERO_CHAMPION, ActiveForm.HERO),
+        (SlotRole.NORMAL, WildSlotMode.OFF, ActiveForm.NORMAL),
     ]
+    for role, wild_mode, expected in cases:
+        assert effective_form(
+            dual,
+            role,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=wild_mode,
+        ) is expected
+
     constraints = DeckConstraints(
-        evolution_count=2, hero_champion_count=0
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
+        required_ids=frozenset({5}),
+    )
+    deck = get_random_deck([dual, *normal], constraints)
+    arranged = arrange_deck(deck, constraints)
+    dual_slot = next(slot for slot in arranged if slot.card["id"] == 5)
+    assert dual_slot.role is SlotRole.NORMAL
+    assert dual_slot.active_form is ActiveForm.NORMAL
+
+
+def test_all_off_special_slots_remain_physically_safe_under_stress():
+    constraints = DeckConstraints(
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
-    with pytest.raises(ConstraintError, match="only 1 Evolution-capable"):
-        get_random_deck(catalog, constraints)
+    for _ in range(100):
+        deck = get_random_deck(make_catalog(), constraints)
+        arranged = arrange_deck(deck, constraints)
+
+        assert active_counts(arranged) == (0, 0)
+        assert not has_evolution(arranged[0].card)
+        assert not has_hero(arranged[1].card)
+        assert not is_champion(arranged[1].card)
+        assert not has_evolution(arranged[2].card)
+        assert not has_hero(arranged[2].card)
+        assert not is_champion(arranged[2].card)
 
 
-def test_too_few_hero_champion_cards_are_rejected():
-    catalog = [make_card(1, has_hero_form=True)] + [
-        make_card(card_id) for card_id in range(2, 10)
-    ]
+@pytest.mark.parametrize(
+    ("field", "kind", "excluded_id"),
+    [
+        ("spell_count", CardType.SPELL, 28000025),
+        ("building_count", CardType.BUILDING, 27000010),
+    ],
+)
+def test_extreme_type_counts_use_real_types_from_snapshot(
+    field, kind, excluded_id
+):
+    cards_path = Path(__file__).resolve().parents[1] / "cards.json"
+    with cards_path.open(encoding="utf-8") as file:
+        cards = json.load(file)["items"]
     constraints = DeckConstraints(
-        evolution_count=0, hero_champion_count=2
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
+        **{field: 8},
     )
 
-    with pytest.raises(ConstraintError, match="only 1 Hero/Champion"):
-        get_random_deck(catalog, constraints)
+    deck = get_random_deck(cards, constraints)
 
-
-def test_dual_form_card_cannot_fill_two_active_slots():
-    catalog = [make_card(1, has_evo=True, has_hero_form=True)] + [
-        make_card(card_id) for card_id in range(2, 10)
-    ]
-    constraints = DeckConstraints(
-        evolution_count=1, hero_champion_count=1
-    )
-
-    with pytest.raises(ConstraintError, match="distinct cards"):
-        get_random_deck(catalog, constraints)
+    assert all(card_type(card) is kind for card in deck)
+    assert excluded_id not in {card["id"] for card in deck}
 
 
 def test_required_champion_conflicts_with_requested_zero_hero_slots():
     constraints = DeckConstraints(
         required_ids=frozenset({6}),
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
-    with pytest.raises(ConstraintError, match="required Champions"):
+    with pytest.raises(ConstraintError, match="required Champions") as error:
         get_random_deck(make_catalog(), constraints)
+
+    assert error.value.code == "required_champion_needs_slot"
 
 
 def test_two_required_champions_conflict_with_one_hero_slot():
     constraints = DeckConstraints(
         required_ids=frozenset({6, 7}),
-        evolution_count=0,
-        hero_champion_count=1,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=True,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
     with pytest.raises(ConstraintError, match="required Champions"):
@@ -594,8 +654,9 @@ def test_two_required_champions_conflict_with_one_hero_slot():
 def test_required_dual_form_card_can_remain_normal():
     constraints = DeckConstraints(
         required_ids=frozenset({5}),
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
     deck = get_random_deck(make_catalog(), constraints)
@@ -667,8 +728,9 @@ def test_exact_spell_and_building_counts_are_respected(
     spell_count, building_count
 ):
     constraints = DeckConstraints(
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
         spell_count=spell_count,
         building_count=building_count,
     )
@@ -684,8 +746,9 @@ def test_exact_spell_and_building_counts_are_respected(
 def test_unrestricted_spells_with_exactly_two_buildings():
     constraints = DeckConstraints(
         required_ids=frozenset({28000001}),
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
         spell_count=None,
         building_count=2,
     )
@@ -699,8 +762,9 @@ def test_unrestricted_spells_with_exactly_two_buildings():
 def test_exactly_two_spells_with_unrestricted_buildings():
     constraints = DeckConstraints(
         required_ids=frozenset({27000001}),
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
         spell_count=2,
         building_count=None,
     )
@@ -715,8 +779,9 @@ def test_unrestricted_card_types_do_not_become_zero_constraints():
     required_ids = frozenset({27000001, 28000001})
     constraints = DeckConstraints(
         required_ids=required_ids,
-        evolution_count=2,
-        hero_champion_count=1,
+        evolution_slot_enabled=True,
+        hero_slot_enabled=True,
+        wild_slot_mode=WildSlotMode.EVOLUTION,
         spell_count=None,
         building_count=None,
     )
@@ -735,7 +800,11 @@ def test_unrestricted_card_types_do_not_become_zero_constraints():
 def test_mirror_can_be_available_without_average_constraint():
     deck = get_random_deck(
         make_typed_catalog(),
-        DeckConstraints(evolution_count=0, hero_champion_count=0),
+        DeckConstraints(
+            evolution_slot_enabled=False,
+            hero_slot_enabled=False,
+            wild_slot_mode=WildSlotMode.OFF,
+        ),
     )
 
     assert len(deck) == 8
@@ -744,8 +813,9 @@ def test_mirror_can_be_available_without_average_constraint():
 def test_mirror_can_be_required_without_average_constraint():
     constraints = DeckConstraints(
         required_ids=frozenset({28000006}),
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
     )
 
     deck = get_random_deck(make_typed_catalog(), constraints)
@@ -913,8 +983,9 @@ def test_too_few_cards_of_requested_type_are_rejected(
 ):
     model = DeckConstraints(
         available_ids=available_ids,
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
         **constraints,
     )
 
@@ -934,8 +1005,9 @@ def test_required_typed_card_conflicts_with_zero_count(
 ):
     constraints = DeckConstraints(
         required_ids=frozenset({required_id}),
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
         **{field: 0},
     )
 
@@ -965,8 +1037,9 @@ def test_required_typed_cards_cannot_exceed_requested_count(
 ):
     constraints = DeckConstraints(
         required_ids=required_ids,
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
         **{field: limit},
     )
 
@@ -978,8 +1051,9 @@ def test_required_spells_use_the_requested_spell_slots():
     required_spells = frozenset({28000001, 28000002})
     constraints = DeckConstraints(
         required_ids=required_spells,
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
         spell_count=2,
     )
 
@@ -996,8 +1070,9 @@ def test_banned_cards_reduce_available_type_pool():
             | {28000001, 28000002}
         ),
         banned_ids=frozenset({28000002}),
-        evolution_count=0,
-        hero_champion_count=0,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
         spell_count=2,
     )
 
@@ -1009,8 +1084,9 @@ def test_type_and_special_form_constraints_are_satisfied_together():
     constraints = DeckConstraints(
         banned_ids=frozenset({28000010}),
         required_ids=frozenset({28000001}),
-        evolution_count=2,
-        hero_champion_count=1,
+        evolution_slot_enabled=True,
+        hero_slot_enabled=True,
+        wild_slot_mode=WildSlotMode.EVOLUTION,
         spell_count=2,
         building_count=1,
     )
@@ -1032,16 +1108,18 @@ def test_type_and_special_form_constraints_are_satisfied_together():
         DeckConstraints(
             banned_ids=frozenset({28000010}),
             required_ids=frozenset({28000001}),
-            evolution_count=2,
-            hero_champion_count=1,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.EVOLUTION,
             spell_count=2,
             building_count=1,
             min_average_elixir=2.9,
             max_average_elixir=3.1,
         ),
         DeckConstraints(
-            evolution_count=1,
-            hero_champion_count=2,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.HERO_CHAMPION,
             spell_count=0,
             building_count=2,
             max_average_elixir=3.0,
@@ -1052,8 +1130,9 @@ def test_type_and_special_form_constraints_are_satisfied_together():
             min_average_elixir=3.0,
         ),
         DeckConstraints(
-            evolution_count=2,
-            hero_champion_count=1,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.EVOLUTION,
             min_average_elixir=3.0,
             max_average_elixir=3.0,
         ),
@@ -1069,10 +1148,7 @@ def test_average_elixir_integrates_with_all_existing_constraints(constraints):
     assert constraints.required_ids <= deck_ids
     assert not deck_ids & constraints.banned_ids
     assert 28000006 not in deck_ids
-    if constraints.evolution_count is not None:
-        assert active_counts(arranged)[0] == constraints.evolution_count
-    if constraints.hero_champion_count is not None:
-        assert active_counts(arranged)[1] == constraints.hero_champion_count
+    assert active_counts(arranged) == configured_active_counts(constraints)
     if constraints.spell_count is not None:
         assert deck_type_count(deck, CardType.SPELL) == constraints.spell_count
     if constraints.building_count is not None:
@@ -1090,16 +1166,18 @@ def test_average_elixir_integrates_with_all_existing_constraints(constraints):
     "constraints",
     [
         DeckConstraints(
-            evolution_count=2,
-            hero_champion_count=1,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.EVOLUTION,
             spell_count=2,
             building_count=1,
             min_average_elixir=3.0,
             max_average_elixir=3.0,
         ),
         DeckConstraints(
-            evolution_count=1,
-            hero_champion_count=2,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.HERO_CHAMPION,
             spell_count=0,
             building_count=2,
             max_average_elixir=3.0,
@@ -1119,10 +1197,7 @@ def test_average_elixir_constraint_stress_test(constraints):
 
         assert len(deck) == len({card["id"] for card in deck}) == 8
         assert 28000006 not in {card["id"] for card in deck}
-        if constraints.evolution_count is not None:
-            assert active_counts(arranged)[0] == constraints.evolution_count
-        if constraints.hero_champion_count is not None:
-            assert active_counts(arranged)[1] == constraints.hero_champion_count
+        assert active_counts(arranged) == configured_active_counts(constraints)
         if constraints.spell_count is not None:
             assert (
                 deck_type_count(deck, CardType.SPELL)
@@ -1143,22 +1218,25 @@ def test_average_elixir_constraint_stress_test(constraints):
     "constraints",
     [
         DeckConstraints(
-            evolution_count=2,
-            hero_champion_count=1,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.EVOLUTION,
             spell_count=2,
             building_count=1,
         ),
         DeckConstraints(
             required_ids=frozenset({28000001, 27000001}),
-            evolution_count=1,
-            hero_champion_count=2,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.HERO_CHAMPION,
             spell_count=3,
             building_count=2,
         ),
         DeckConstraints(
             banned_ids=frozenset({28000010, 27000010}),
-            evolution_count=0,
-            hero_champion_count=0,
+            evolution_slot_enabled=False,
+            hero_slot_enabled=False,
+            wild_slot_mode=WildSlotMode.OFF,
             spell_count=4,
             building_count=4,
         ),
@@ -1171,10 +1249,7 @@ def test_type_and_special_constraint_stress_test(constraints):
 
         assert len(deck) == len({card["id"] for card in deck}) == 8
         assert constraints.required_ids <= {card["id"] for card in deck}
-        assert active_counts(arranged) == (
-            constraints.evolution_count,
-            constraints.hero_champion_count,
-        )
+        assert active_counts(arranged) == configured_active_counts(constraints)
         assert deck_type_count(deck, CardType.SPELL) == constraints.spell_count
         assert (
             deck_type_count(deck, CardType.BUILDING)
@@ -1187,8 +1262,9 @@ def test_constrained_deck_is_unique_and_respects_all_lists_and_counts():
         available_ids=frozenset(range(1, 16)),
         banned_ids=frozenset({10, 11}),
         required_ids=frozenset({1, 6, 8}),
-        evolution_count=2,
-        hero_champion_count=1,
+        evolution_slot_enabled=True,
+        hero_slot_enabled=True,
+        wild_slot_mode=WildSlotMode.EVOLUTION,
     )
 
     deck = get_random_deck(make_catalog(), constraints)
@@ -1212,13 +1288,22 @@ def test_get_random_deck_without_constraints_remains_supported():
 @pytest.mark.parametrize(
     "constraints",
     [
-        DeckConstraints(evolution_count=2, hero_champion_count=0),
-        DeckConstraints(evolution_count=1, hero_champion_count=2),
+        DeckConstraints(
+            evolution_slot_enabled=True,
+            hero_slot_enabled=False,
+            wild_slot_mode=WildSlotMode.EVOLUTION,
+        ),
+        DeckConstraints(
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.HERO_CHAMPION,
+        ),
         DeckConstraints(
             banned_ids=frozenset({10, 11}),
             required_ids=frozenset({1, 8}),
-            evolution_count=2,
-            hero_champion_count=1,
+            evolution_slot_enabled=True,
+            hero_slot_enabled=True,
+            wild_slot_mode=WildSlotMode.EVOLUTION,
         ),
     ],
 )
@@ -1233,10 +1318,7 @@ def test_constrained_generation_stress_test(constraints):
         assert {card["id"] for card in deck}.isdisjoint(
             constraints.banned_ids
         )
-        assert active_counts(arranged) == (
-            constraints.evolution_count,
-            constraints.hero_champion_count,
-        )
+        assert active_counts(arranged) == configured_active_counts(constraints)
 
 
 def test_random_deck_rules_stress_test():

@@ -20,10 +20,22 @@ class SlotRole(Enum):
     NORMAL = "normal"
 
 
+class WildSlotMode(Enum):
+    OFF = "off"
+    EVOLUTION = "evolution"
+    HERO_CHAMPION = "hero_champion"
+
+
 class CardType(Enum):
     TROOP = "troop"
     SPELL = "spell"
     BUILDING = "building"
+
+
+CARD_TYPE_OVERRIDES = {
+    27000010: CardType.TROOP,  # Furnace, reworked from a Building
+    28000025: CardType.TROOP,  # Spirit Empress
+}
 
 
 def card_type(card):
@@ -31,6 +43,11 @@ def card_type(card):
     if not isinstance(card_id, int) or isinstance(card_id, bool):
         raise ValueError("card ID must be an integer")
 
+    if card_id in CARD_TYPE_OVERRIDES:
+        return CARD_TYPE_OVERRIDES[card_id]
+
+    # Legacy ID namespaces provide a derived classification for this snapshot;
+    # the API does not expose an authoritative card-type field.
     supported_spaces = (
         (range(26_000_000, 27_000_000), CardType.TROOP),
         (range(27_000_000, 28_000_000), CardType.BUILDING),
@@ -52,6 +69,38 @@ def has_hero(card):
 
 def is_champion(card):
     return card.get("rarity") == "champion"
+
+
+def effective_form(
+    card,
+    role,
+    *,
+    evolution_slot_enabled=True,
+    hero_slot_enabled=True,
+    wild_slot_mode=WildSlotMode.EVOLUTION,
+):
+    if role is SlotRole.EVOLUTION:
+        if evolution_slot_enabled and has_evolution(card):
+            return ActiveForm.EVOLUTION
+        return ActiveForm.NORMAL
+    if role is SlotRole.HERO:
+        if not hero_slot_enabled:
+            return ActiveForm.NORMAL
+        if is_champion(card):
+            return ActiveForm.CHAMPION
+        if has_hero(card):
+            return ActiveForm.HERO
+        return ActiveForm.NORMAL
+    if role is SlotRole.WILD:
+        if wild_slot_mode is WildSlotMode.EVOLUTION and has_evolution(card):
+            return ActiveForm.EVOLUTION
+        if wild_slot_mode is WildSlotMode.HERO_CHAMPION:
+            if is_champion(card):
+                return ActiveForm.CHAMPION
+            if has_hero(card):
+                return ActiveForm.HERO
+        return ActiveForm.NORMAL
+    return ActiveForm.NORMAL
 
 
 @dataclass(frozen=True)
