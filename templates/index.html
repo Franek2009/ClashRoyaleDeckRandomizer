@@ -12,17 +12,68 @@
 
 <body>
 
+    {% macro count_select(name, label, maximum) %}
+        <div class="constraint-field">
+            <label for="{{ name }}">{{ label }}</label>
+            <select id="{{ name }}" name="{{ name }}">
+                <option value="any"{% if form_values[name] == 'any' %} selected{% endif %}>Any</option>
+                {% for value in range(maximum + 1) %}
+                    <option value="{{ value }}"{% if form_values[name] == value|string %} selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    {% endmacro %}
+
     <main class="container">
 
         <header class="header">
             <h1>Clash Royale Deck Randomizer</h1>
             <p>Randomize your deck and start playing!</p>
 
-            <form action="/generate" method="post">
+            <form action="/generate" method="post" class="constraints-form">
+                <fieldset>
+                    <legend>Deck constraints</legend>
+
+                    <div class="constraints-grid">
+                        {{ count_select('evolution_count', 'Evolution count', 2) }}
+                        {{ count_select('hero_champion_count', 'Hero / Champion count', 2) }}
+                        {{ count_select('spell_count', 'Spell count', 8) }}
+                        {{ count_select('building_count', 'Building count', 8) }}
+
+                        <div class="constraint-field">
+                            <label for="min_average_elixir">Minimum average elixir</label>
+                            <input
+                                id="min_average_elixir"
+                                name="min_average_elixir"
+                                type="number"
+                                min="0.1"
+                                step="0.1"
+                                value="{{ form_values['min_average_elixir'] }}"
+                            >
+                        </div>
+
+                        <div class="constraint-field">
+                            <label for="max_average_elixir">Maximum average elixir</label>
+                            <input
+                                id="max_average_elixir"
+                                name="max_average_elixir"
+                                type="number"
+                                min="0.1"
+                                step="0.1"
+                                value="{{ form_values['max_average_elixir'] }}"
+                            >
+                        </div>
+                    </div>
+                </fieldset>
+
                 <button type="submit" class="generate-button">
                     Generate Deck
                 </button>
             </form>
+
+            {% if error_message %}
+                <p class="error-message" role="alert">{{ error_message }}</p>
+            {% endif %}
         </header>
 
         {% if deck %}
@@ -31,36 +82,81 @@
 
                 <h2>Your Deck</h2>
 
+                <dl class="deck-summary" aria-label="Deck summary">
+                    <div>
+                        <dt>Evolutions</dt>
+                        <dd id="summary-evolutions">{{ deck_summary['evolutions'] }}</dd>
+                    </div>
+                    <div>
+                        <dt>Heroes/Champions</dt>
+                        <dd id="summary-heroes">{{ deck_summary['heroes'] }}</dd>
+                    </div>
+                    <div>
+                        <dt>Spells</dt>
+                        <dd id="summary-spells">{{ deck_summary['spells'] }}</dd>
+                    </div>
+                    <div>
+                        <dt>Buildings</dt>
+                        <dd id="summary-buildings">{{ deck_summary['buildings'] }}</dd>
+                    </div>
+                    <div>
+                        <dt>Average Elixir</dt>
+                        <dd id="summary-average-elixir">{{ deck_summary['average_elixir'] }}</dd>
+                    </div>
+                </dl>
+
                 <div class="deck">
 
                     {% for slot in deck %}
 
-                        <article class="card">
+                        <article
+                            class="card"
+                            data-slot-role="{{ slot.role.value }}"
+                            data-active-form="{{ slot.active_form.value }}"
+                        >
+
+                            {% if slot.role.value != 'normal' %}
+                                <span class="slot-badge">
+                                    {% if slot.role.value == 'evolution' %}
+                                        Evolution Slot
+                                    {% elif slot.role.value == 'hero' %}
+                                        Hero Slot
+                                    {% else %}
+                                        Wild Slot
+                                    {% endif %}
+                                </span>
+                            {% endif %}
 
                             <div class="card-image">
                                 <img
-                                    src="{% if slot['is_evolution'] %}
-                                        {{ slot['card']['iconUrls']['evolutionMedium'] }}
+                                    {% if slot.active_form.value == 'evolution' %}
+                                        src="{{ slot.card.iconUrls.evolutionMedium }}"
+                                    {% elif slot.active_form.value == 'hero' %}
+                                        src="{{ slot.card.iconUrls.heroMedium }}"
                                     {% else %}
-                                        {{ slot['card']['iconUrls']['medium'] }}
-                                    {% endif %}"
-                                    alt="{{ slot['card']['name'] }}"
+                                        src="{{ slot.card.iconUrls.medium }}"
+                                    {% endif %}
+                                    alt="{{ slot.card.name }}"
                                 >
                             </div>
 
                             <div class="card-info">
 
-                                <h3>{{ slot['card']['name'] }}</h3>
+                                <h3>{{ slot.card.name }}</h3>
+
+                                <span class="active-form">
+                                    {{ slot.active_form.value|capitalize }}
+                                </span>
 
                                 <div class="card-details">
 
                                     <span class="rarity">
-                                        {{ slot['card']['rarity'] }}
+                                        {{ slot.card.rarity }}
                                     </span>
 
                                     <span class="elixir">
                                         <span class="elixir-icon"></span>
-                                        {{ slot['card']['elixirCost'] }}
+                                        {{ slot.card.get('elixirCost', 'N/A') }}
                                     </span>
 
                                 </div>

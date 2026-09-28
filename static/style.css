@@ -36,6 +36,74 @@ body {
 }
 
 
+/* Constraints form */
+
+.constraints-form {
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+.constraints-form fieldset {
+    margin: 0 0 22px;
+    padding: 20px;
+    border: 1px solid #4b5563;
+    border-radius: 14px;
+    text-align: left;
+    background: #1f2937;
+}
+
+.constraints-form legend {
+    padding: 0 8px;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.constraints-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.constraint-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.constraint-field label {
+    color: #e5e7eb;
+    font-size: 0.9rem;
+}
+
+.constraint-field select,
+.constraint-field input {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 11px;
+    border: 1px solid #6b7280;
+    border-radius: 8px;
+    font: inherit;
+    color: #f9fafb;
+    background: #111827;
+}
+
+.constraint-field select:focus,
+.constraint-field input:focus {
+    outline: 2px solid #a78bfa;
+    outline-offset: 2px;
+}
+
+.header .error-message {
+    max-width: 850px;
+    margin: 18px auto 0;
+    padding: 12px 16px;
+    border: 1px solid #f87171;
+    border-radius: 8px;
+    color: #fecaca;
+    background: #451a1a;
+}
+
+
 /* Generate button */
 
 .generate-button {
@@ -74,6 +142,32 @@ body {
     margin-bottom: 25px;
 }
 
+.deck-summary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 0 0 25px;
+}
+
+.deck-summary div {
+    min-width: 120px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    text-align: center;
+    background: #1f2937;
+}
+
+.deck-summary dt {
+    color: #9ca3af;
+    font-size: 0.8rem;
+}
+
+.deck-summary dd {
+    margin: 4px 0 0;
+    font-weight: bold;
+}
+
 .deck {
     display: grid;
 
@@ -86,6 +180,7 @@ body {
 /* Card */
 
 .card {
+    position: relative;
     overflow: hidden;
 
     border-radius: 14px;
@@ -98,6 +193,19 @@ body {
     transition:
         transform 0.2s ease,
         box-shadow 0.2s ease;
+}
+
+.slot-badge {
+    position: absolute;
+    z-index: 1;
+    top: 8px;
+    left: 8px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    color: white;
+    background: rgba(17, 24, 39, 0.88);
+    font-size: 0.72rem;
+    font-weight: bold;
 }
 
 .card:hover {
@@ -138,6 +246,14 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.active-form {
+    display: inline-block;
+    margin-bottom: 9px;
+    color: #c4b5fd;
+    font-size: 0.8rem;
+    font-weight: bold;
 }
 
 
@@ -196,6 +312,10 @@ body {
 
 @media (max-width: 800px) {
 
+    .constraints-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .deck {
         grid-template-columns: repeat(2, 1fr);
         gap: 15px;
@@ -215,6 +335,14 @@ body {
 /* Very small screens */
 
 @media (max-width: 400px) {
+
+    .constraints-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .constraints-form fieldset {
+        padding: 15px;
+    }
 
     .deck {
         gap: 10px;
