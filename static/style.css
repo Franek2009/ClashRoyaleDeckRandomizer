@@ -39,28 +39,108 @@ body {
 /* Constraints form */
 
 .constraints-form {
-    max-width: 850px;
+    max-width: 900px;
     margin: 0 auto;
 }
 
-.constraints-form fieldset {
-    margin: 0 0 22px;
-    padding: 20px;
+.constraints-panel {
+    overflow: hidden;
+    margin-bottom: 22px;
     border: 1px solid #4b5563;
     border-radius: 14px;
     text-align: left;
     background: #1f2937;
 }
 
-.constraints-form legend {
-    padding: 0 8px;
-    font-size: 1.1rem;
+.constraint-group {
+    padding: 20px;
+}
+
+.constraint-group + .constraint-group {
+    border-top: 1px solid #374151;
+}
+
+.constraint-group h2 {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+}
+
+.slot-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.slot-control {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.slot-control legend {
+    margin-bottom: 7px;
+    padding: 0;
+    color: #e5e7eb;
+    font-size: 0.9rem;
+}
+
+.segmented-options {
+    display: flex;
+    overflow: hidden;
+    border: 1px solid #6b7280;
+    border-radius: 8px;
+    background: #111827;
+}
+
+.segment-option {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.segment-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+.segment-option span {
+    display: flex;
+    min-height: 42px;
+    padding: 8px 6px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #cbd5e1;
+    font-size: 0.82rem;
+    line-height: 1.2;
+}
+
+.segment-option + .segment-option span {
+    border-left: 1px solid #4b5563;
+}
+
+.segment-option input:checked + span {
+    color: white;
+    background: #6d28d9;
     font-weight: bold;
 }
 
-.constraints-grid {
+.segment-option input:focus-visible + span {
+    outline: 2px solid #c4b5fd;
+    outline-offset: -3px;
+}
+
+.constraint-grid-two {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
 }
 
@@ -94,9 +174,15 @@ body {
 }
 
 .constraint-help {
-    margin: 16px 0 0;
+    margin: 6px 0 0;
     color: #9ca3af;
     font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.constraint-grid-two + .constraint-help,
+.slot-controls + .constraint-help {
+    margin-top: 12px;
 }
 
 .header .error-message {
@@ -140,6 +226,11 @@ body {
     transform: translateY(0);
 }
 
+.generate-button:focus-visible {
+    outline: 3px solid #c4b5fd;
+    outline-offset: 3px;
+}
+
 
 /* Deck */
 
@@ -148,13 +239,34 @@ body {
     margin-bottom: 25px;
 }
 
+.result-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 5fr);
+    gap: 16px;
+    margin: 0 0 25px;
+}
+
+.summary-group {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #374151;
+    border-radius: 12px;
+    background: #111827;
+}
+
+.summary-group h3 {
+    margin: 0 0 12px;
+    color: #e5e7eb;
+    font-size: 0.95rem;
+    text-align: left;
+}
+
 .deck-summary,
 .slot-summary {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-    margin: 0 0 25px;
+    gap: 8px;
+    margin: 0;
 }
 
 .deck-summary div,
@@ -176,10 +288,6 @@ body {
 .slot-summary dd {
     margin: 4px 0 0;
     font-weight: bold;
-}
-
-.slot-summary {
-    margin-bottom: 12px;
 }
 
 .wild-form-notice {
@@ -273,9 +381,16 @@ body {
 }
 
 .active-form {
-    display: inline-block;
     margin-bottom: 9px;
-    color: #c4b5fd;
+}
+
+.form-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border: 1px solid #8b5cf6;
+    border-radius: 6px;
+    color: #ddd6fe;
+    background: #2e1065;
     font-size: 0.8rem;
     font-weight: bold;
 }
@@ -336,8 +451,9 @@ body {
 
 @media (max-width: 800px) {
 
-    .constraints-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .slot-controls,
+    .result-summary {
+        grid-template-columns: 1fr;
     }
 
     .deck {
@@ -360,12 +476,17 @@ body {
 
 @media (max-width: 400px) {
 
-    .constraints-grid {
+    .constraint-grid-two {
         grid-template-columns: 1fr;
     }
 
-    .constraints-form fieldset {
+    .constraint-group {
         padding: 15px;
+    }
+
+    .generate-button {
+        width: 100%;
+        min-height: 46px;
     }
 
     .deck {

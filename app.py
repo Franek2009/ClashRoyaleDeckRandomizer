@@ -33,27 +33,34 @@ AVERAGE_FIELDS = ("min_average_elixir", "max_average_elixir")
 
 FRIENDLY_ERRORS = {
     "type_counts_exceed_deck_size": (
-        "You selected more card types than can fit in an 8-card deck. "
-        "Reduce one of the values."
+        "You selected more card types than can fit in an 8-card deck."
     ),
     "not_enough_spells": (
-        "There aren't enough available Spell cards to build this deck."
+        "There aren't enough Spell cards available for this selection."
     ),
     "not_enough_buildings": (
-        "There aren't enough available Building cards to build this deck."
+        "There aren't enough Building cards available for this selection."
     ),
     "required_champion_needs_slot": (
-        "A required Champion needs either the Hero Slot or the Wild Slot "
-        "set to Hero / Champion."
+        "A required Champion needs the Hero Slot or Wild Slot set to "
+        "Hero / Champion."
     ),
     "average_min_greater_than_max": (
         "Minimum deck average cannot be greater than maximum deck average."
     ),
     "constraints_not_feasible": (
-        "These slot and deck constraints cannot be satisfied together. "
-        "Try relaxing one of the selections."
+        "These settings cannot produce a valid deck. Try relaxing one or "
+        "more constraints."
     ),
+    "invalid_count": "Choose Any or a whole number from the list.",
+    "invalid_average": "Enter a valid number for the deck average.",
+    "invalid_slot_selection": "Choose a valid special-slot setting.",
 }
+
+GENERIC_CONSTRAINT_ERROR = (
+    "These settings cannot produce a valid deck. Try relaxing one or more "
+    "constraints."
+)
 
 
 def _default_form_values():
@@ -73,7 +80,7 @@ def _parse_optional_int(field, value):
         return int(value)
     except ValueError as error:
         raise ConstraintError(
-            f"{field} must be an integer or Any"
+            f"{field} must be an integer or Any", code="invalid_count"
         ) from error
 
 
@@ -83,14 +90,18 @@ def _parse_optional_float(field, value):
     try:
         return float(value)
     except ValueError as error:
-        raise ConstraintError(f"{field} must be a number") from error
+        raise ConstraintError(
+            f"{field} must be a number", code="invalid_average"
+        ) from error
 
 
 def _parse_wild_mode(value):
     try:
         return WildSlotMode(value)
     except ValueError as error:
-        raise ConstraintError("wild_slot_mode is invalid") from error
+        raise ConstraintError(
+            "wild_slot_mode is invalid", code="invalid_slot_selection"
+        ) from error
 
 
 def _constraints_from_form(form_values):
@@ -172,7 +183,9 @@ def generate():
     except ConstraintError as error:
         return render_template(
             "index.html",
-            error_message=FRIENDLY_ERRORS.get(error.code, str(error)),
+            error_message=FRIENDLY_ERRORS.get(
+                error.code, GENERIC_CONSTRAINT_ERROR
+            ),
             form_values=form_values,
         )
 
@@ -186,8 +199,8 @@ def generate():
             else "Hero"
         )
         wild_form_notice = (
-            "After importing the deck, select the "
-            f"{selected_form} form for the Wild Slot in Clash Royale."
+            "After importing the deck, set the Wild Slot to "
+            f"{selected_form}."
         )
 
     return render_template(

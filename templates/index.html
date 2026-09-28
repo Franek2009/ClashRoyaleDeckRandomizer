@@ -24,6 +24,18 @@
         </div>
     {% endmacro %}
 
+    {% macro slot_option(name, value, label) %}
+        <label class="segment-option">
+            <input
+                type="radio"
+                name="{{ name }}"
+                value="{{ value }}"
+                {% if form_values[name] == value %}checked{% endif %}
+            >
+            <span>{{ label }}</span>
+        </label>
+    {% endmacro %}
+
     <main class="container">
 
         <header class="header">
@@ -31,39 +43,53 @@
             <p>Randomize your deck and start playing!</p>
 
             <form action="/generate" method="post" class="constraints-form">
-                <fieldset>
-                    <legend>Deck constraints</legend>
+                <div class="constraints-panel">
+                    <section class="constraint-group" aria-labelledby="special-slots-heading">
+                        <h2 id="special-slots-heading">Special Slots</h2>
+                        <p class="constraint-help">Choose what each special deck slot should activate.</p>
 
-                    <div class="constraints-grid">
-                        <div class="constraint-field">
-                            <label for="evolution_slot_enabled">Evolution Slot</label>
-                            <select id="evolution_slot_enabled" name="evolution_slot_enabled">
-                                <option value="off"{% if form_values['evolution_slot_enabled'] == 'off' %} selected{% endif %}>Off</option>
-                                <option value="on"{% if form_values['evolution_slot_enabled'] == 'on' %} selected{% endif %}>Evolution</option>
-                            </select>
+                        <div class="slot-controls">
+                            <fieldset class="slot-control">
+                                <legend>Evolution Slot</legend>
+                                <div class="segmented-options">
+                                    {{ slot_option('evolution_slot_enabled', 'off', 'Off') }}
+                                    {{ slot_option('evolution_slot_enabled', 'on', 'Evolution') }}
+                                </div>
+                            </fieldset>
+
+                            <fieldset class="slot-control">
+                                <legend>Hero Slot</legend>
+                                <div class="segmented-options">
+                                    {{ slot_option('hero_slot_enabled', 'off', 'Off') }}
+                                    {{ slot_option('hero_slot_enabled', 'on', 'Hero / Champion') }}
+                                </div>
+                            </fieldset>
+
+                            <fieldset class="slot-control">
+                                <legend>Wild Slot</legend>
+                                <div class="segmented-options">
+                                    {{ slot_option('wild_slot_mode', 'off', 'Off') }}
+                                    {{ slot_option('wild_slot_mode', 'evolution', 'Evolution') }}
+                                    {{ slot_option('wild_slot_mode', 'hero_champion', 'Hero / Champion') }}
+                                </div>
+                            </fieldset>
                         </div>
+                        <p class="constraint-help">Wild Slot can activate either an Evolution or a Hero / Champion.</p>
+                    </section>
 
-                        <div class="constraint-field">
-                            <label for="hero_slot_enabled">Hero Slot</label>
-                            <select id="hero_slot_enabled" name="hero_slot_enabled">
-                                <option value="off"{% if form_values['hero_slot_enabled'] == 'off' %} selected{% endif %}>Off</option>
-                                <option value="on"{% if form_values['hero_slot_enabled'] == 'on' %} selected{% endif %}>Hero / Champion</option>
-                            </select>
+                    <section class="constraint-group" aria-labelledby="deck-composition-heading">
+                        <h2 id="deck-composition-heading">Deck Composition</h2>
+                        <div class="constraint-grid-two">
+                            {{ count_select('spell_count', 'Spells', 8) }}
+                            {{ count_select('building_count', 'Buildings', 8) }}
                         </div>
+                        <p class="constraint-help">Exact number in the 8-card deck.</p>
+                    </section>
 
-                        <div class="constraint-field">
-                            <label for="wild_slot_mode">Wild Slot</label>
-                            <select id="wild_slot_mode" name="wild_slot_mode">
-                                <option value="off"{% if form_values['wild_slot_mode'] == 'off' %} selected{% endif %}>Off</option>
-                                <option value="evolution"{% if form_values['wild_slot_mode'] == 'evolution' %} selected{% endif %}>Evolution</option>
-                                <option value="hero_champion"{% if form_values['wild_slot_mode'] == 'hero_champion' %} selected{% endif %}>Hero / Champion</option>
-                            </select>
-                        </div>
-
-                        {{ count_select('spell_count', 'Spell count', 8) }}
-                        {{ count_select('building_count', 'Building count', 8) }}
-
-                        <div class="constraint-field">
+                    <section class="constraint-group" aria-labelledby="average-elixir-heading">
+                        <h2 id="average-elixir-heading">Average Elixir</h2>
+                        <div class="constraint-grid-two">
+                            <div class="constraint-field">
                             <label for="min_average_elixir">Deck average elixir — minimum</label>
                             <input
                                 id="min_average_elixir"
@@ -73,9 +99,9 @@
                                 step="0.1"
                                 value="{{ form_values['min_average_elixir'] }}"
                             >
-                        </div>
+                            </div>
 
-                        <div class="constraint-field">
+                            <div class="constraint-field">
                             <label for="max_average_elixir">Deck average elixir — maximum</label>
                             <input
                                 id="max_average_elixir"
@@ -85,13 +111,14 @@
                                 step="0.1"
                                 value="{{ form_values['max_average_elixir'] }}"
                             >
+                            </div>
                         </div>
-                    </div>
-                    <p class="constraint-help">
-                        Limits the average cost of the entire 8-card deck,
-                        not individual card costs.
-                    </p>
-                </fieldset>
+                        <p class="constraint-help">
+                            Limits the average cost of the entire 8-card deck,
+                            not individual card costs.
+                        </p>
+                    </section>
+                </div>
 
                 <button type="submit" class="generate-button">
                     Generate Deck
@@ -109,44 +136,37 @@
 
                 <h2>Your Deck</h2>
 
-                <dl class="slot-summary" aria-label="Special slots">
-                    {% for slot in deck_summary['special_slots'] %}
-                        <div>
-                            <dt>
-                                {% if slot['role'] == 'evolution' %}Evolution Slot
-                                {% elif slot['role'] == 'hero' %}Hero Slot
-                                {% else %}Wild Slot{% endif %}
-                            </dt>
-                            <dd>
-                                {% if slot['form'] == 'normal' %}Off
-                                {% else %}{{ slot['form']|replace('_', ' ')|title }}{% endif %}
-                            </dd>
-                        </div>
-                    {% endfor %}
-                </dl>
+                <div class="result-summary">
+                    <section class="summary-group" aria-labelledby="slot-summary-heading">
+                        <h3 id="slot-summary-heading">Special Slots</h3>
+                        <dl class="slot-summary">
+                            {% for slot in deck_summary['special_slots'] %}
+                                <div>
+                                    <dt>
+                                        {% if slot['role'] == 'evolution' %}Evolution Slot
+                                        {% elif slot['role'] == 'hero' %}Hero Slot
+                                        {% else %}Wild Slot{% endif %}
+                                    </dt>
+                                    <dd id="summary-slot-{{ slot['role'] }}">
+                                        {% if slot['form'] == 'normal' %}Off
+                                        {% else %}{{ slot['form']|replace('_', ' ')|title }}{% endif %}
+                                    </dd>
+                                </div>
+                            {% endfor %}
+                        </dl>
+                    </section>
 
-                <dl class="deck-summary" aria-label="Deck summary">
-                    <div>
-                        <dt>Evolutions</dt>
-                        <dd id="summary-evolutions">{{ deck_summary['evolutions'] }}</dd>
-                    </div>
-                    <div>
-                        <dt>Heroes/Champions</dt>
-                        <dd id="summary-heroes">{{ deck_summary['heroes'] }}</dd>
-                    </div>
-                    <div>
-                        <dt>Spells</dt>
-                        <dd id="summary-spells">{{ deck_summary['spells'] }}</dd>
-                    </div>
-                    <div>
-                        <dt>Buildings</dt>
-                        <dd id="summary-buildings">{{ deck_summary['buildings'] }}</dd>
-                    </div>
-                    <div>
-                        <dt>Average Elixir</dt>
-                        <dd id="summary-average-elixir">{{ deck_summary['average_elixir'] }}</dd>
-                    </div>
-                </dl>
+                    <section class="summary-group" aria-labelledby="deck-summary-heading">
+                        <h3 id="deck-summary-heading">Deck</h3>
+                        <dl class="deck-summary">
+                            <div><dt>Evolutions</dt><dd id="summary-evolutions">{{ deck_summary['evolutions'] }}</dd></div>
+                            <div><dt>Heroes / Champions</dt><dd id="summary-heroes">{{ deck_summary['heroes'] }}</dd></div>
+                            <div><dt>Spells</dt><dd id="summary-spells">{{ deck_summary['spells'] }}</dd></div>
+                            <div><dt>Buildings</dt><dd id="summary-buildings">{{ deck_summary['buildings'] }}</dd></div>
+                            <div><dt>Average Elixir</dt><dd id="summary-average-elixir">{{ deck_summary['average_elixir'] }}</dd></div>
+                        </dl>
+                    </section>
+                </div>
 
                 <div class="deck">
 
@@ -188,7 +208,7 @@
                                 <h3>{{ slot.card.name }}</h3>
 
                                 {% if slot.active_form.value != 'normal' %}
-                                    <span class="active-form">
+                                    <span class="active-form form-badge">
                                         {{ slot.active_form.value|capitalize }}
                                     </span>
                                 {% endif %}
