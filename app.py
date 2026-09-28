@@ -166,7 +166,7 @@ def _deck_summary(deck, arranged_deck):
     if average is None:
         average_display = "—"
     else:
-        average_display = f"{average:.2f}".rstrip("0")
+        average_display = f"{average:.3f}".rstrip("0")
         if average_display.endswith("."):
             average_display += "0"
 
@@ -184,7 +184,6 @@ def _deck_summary(deck, arranged_deck):
             card_type(card) is CardType.BUILDING for card in deck
         ),
         "average_elixir": average_display,
-        "has_variable_elixir": average is None,
         "special_slots": [
             {
                 "role": slot.role.value,

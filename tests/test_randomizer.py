@@ -163,12 +163,19 @@ def test_average_elixir_for_mixed_deck():
     assert average_elixir(deck) == 3.5
 
 
-@pytest.mark.parametrize("missing_id", [28000006, 26000001])
-def test_average_elixir_is_none_when_a_card_has_no_cost(missing_id):
+def test_average_elixir_is_none_when_non_mirror_card_has_no_cost():
     deck = [make_card(26000001 + index) for index in range(8)]
-    deck[0] = make_card(missing_id, elixir_cost=None)
+    deck[0] = make_card(26000001, elixir_cost=None)
 
     assert average_elixir(deck) is None
+
+
+def test_average_elixir_counts_mirror_as_one():
+    deck = [make_card(26000001 + index, elixir_cost=4) for index in range(7)]
+    deck.append(make_card(28000006, elixir_cost=None))
+
+    assert average_elixir(deck) == 29 / 8
+    assert average_elixir(deck) == 3.625
 
 
 def test_average_elixir_requires_eight_cards():
@@ -828,38 +835,27 @@ def test_mirror_can_be_required_without_average_constraint():
     deck = get_random_deck(make_typed_catalog(), constraints)
 
     assert 28000006 in {card["id"] for card in deck}
-    assert average_elixir(deck) is None
+    assert average_elixir(deck) is not None
 
 
-@pytest.mark.parametrize(
-    "average_constraint",
-    [
-        {"min_average_elixir": 3.0},
-        {"max_average_elixir": 3.0},
-    ],
-)
-def test_required_mirror_conflicts_with_average_constraint(
-    average_constraint,
-):
+def test_required_mirror_is_accepted_with_average_constraint():
+    catalog = make_typed_catalog()
+    for card in catalog:
+        if card["id"] != 28000006:
+            card["elixirCost"] = 4
     constraints = DeckConstraints(
         required_ids=frozenset({28000006}),
-        **average_constraint,
+        evolution_slot_enabled=False,
+        hero_slot_enabled=False,
+        wild_slot_mode=WildSlotMode.OFF,
+        min_average_elixir=3.625,
+        max_average_elixir=3.625,
     )
 
-    with pytest.raises(ConstraintError, match="Mirror cannot be required"):
-        get_random_deck(make_typed_catalog(), constraints)
+    deck = get_random_deck(catalog, constraints)
 
-
-def test_available_mirror_is_excluded_by_average_range():
-    constraints = DeckConstraints(
-        min_average_elixir=3.0,
-        max_average_elixir=3.0,
-    )
-
-    deck = get_random_deck(make_typed_catalog(), constraints)
-
-    assert 28000006 not in {card["id"] for card in deck}
-    assert average_elixir(deck) == 3.0
+    assert 28000006 in {card["id"] for card in deck}
+    assert average_elixir(deck) == 3.625
 
 
 def test_banned_mirror_with_average_constraint_uses_normal_ban_behavior():
@@ -908,7 +904,9 @@ def test_average_elixir_ranges_are_respected(constraints):
     ],
 )
 def test_unreachable_average_elixir_range_is_rejected(field, value, message):
-    constraints = DeckConstraints(**{field: value})
+    constraints = DeckConstraints(
+        banned_ids=frozenset({28000006}), **{field: value}
+    )
 
     with pytest.raises(ConstraintError, match=message):
         get_random_deck(make_typed_catalog(), constraints)

@@ -5,6 +5,7 @@ from card_model import CardType, WildSlotMode, card_type, is_champion
 
 
 MIRROR_ID = 28000006
+MIRROR_AVERAGE_ELIXIR = 1
 
 
 class ConstraintError(ValueError):
@@ -30,10 +31,16 @@ class DeckConstraints:
 def average_elixir(cards):
     if len(cards) != 8:
         raise ValueError("average elixir requires exactly eight cards")
-    costs = [card.get("elixirCost") for card in cards]
+    costs = [elixir_cost_for_average(card) for card in cards]
     if any(cost is None for cost in costs):
         return None
     return sum(costs) / 8
+
+
+def elixir_cost_for_average(card):
+    if card.get("id") == MIRROR_ID:
+        return MIRROR_AVERAGE_ELIXIR
+    return card.get("elixirCost")
 
 
 def _validate_average(name, value):
@@ -172,21 +179,6 @@ def validate_constraints(cards, constraints):
         )
 
     average_is_active = min_total is not None or max_total is not None
-    if average_is_active and MIRROR_ID in constraints.required_ids:
-        raise ConstraintError(
-            "Mirror cannot be required when an average elixir constraint "
-            "is active"
-        )
-    if average_is_active:
-        eligible_cards = [
-            card for card in eligible_cards if card["id"] != MIRROR_ID
-        ]
-        if len(eligible_cards) < 8:
-            raise ConstraintError(
-                f"effective card pool has {len(eligible_cards)} cards after "
-                "excluding Mirror; at least 8 are required",
-                code="not_enough_eligible_cards",
-            )
 
     type_constraints = (
         (
@@ -242,10 +234,12 @@ def validate_constraints(cards, constraints):
         required_cards = [
             catalog_by_id[card_id] for card_id in constraints.required_ids
         ]
-        required_total = sum(card["elixirCost"] for card in required_cards)
+        required_total = sum(
+            elixir_cost_for_average(card) for card in required_cards
+        )
         required_ids = constraints.required_ids
         remaining_costs = sorted(
-            card["elixirCost"]
+            elixir_cost_for_average(card)
             for card in eligible_cards
             if card["id"] not in required_ids
         )

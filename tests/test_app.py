@@ -217,15 +217,25 @@ def test_card_pool_values_are_retained_after_error():
         assert re.search(pattern, response.data)
 
 
-def test_mirror_uses_dash_in_picker_and_result():
+def test_mirror_uses_dash_on_card_and_numeric_average_in_result():
     response = post(app.test_client(), required_ids=[28000006])
 
     assert response.status_code == 200
     assert 28000006 in deck_card_ids(response)
     assert b"N/A" not in response.data
-    assert b'id="summary-average-elixir">\xe2\x80\x94</dd>' in response.data
-    assert b"Mirror has no fixed elixir cost" in response.data
-    assert "— (Mirror)".encode() not in response.data
+    match = re.search(
+        rb'id="summary-average-elixir">([^<]+)</dd>', response.data
+    )
+    assert match is not None
+    assert float(match.group(1)) > 0
+    assert b"Mirror has no fixed elixir cost" not in response.data
+    mirror_card = re.search(
+        rb'class="card"\s+data-card-id="28000006".*?</article>',
+        response.data,
+        re.DOTALL,
+    )
+    assert mirror_card is not None
+    assert "—".encode() in mirror_card.group(0)
 
 
 def test_card_picker_and_search_are_rendered():

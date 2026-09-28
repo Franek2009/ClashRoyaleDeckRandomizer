@@ -19,6 +19,7 @@ from constraints import (
     DeckConstraints,
     _elixir_total_bounds,
     average_elixir,
+    elixir_cost_for_average,
     validate_constraints,
 )
 
@@ -99,7 +100,7 @@ def _select_elixir_fillers(candidates_by_type, needed, chosen_total, bounds):
 
         available_costs = {
             kind: sorted(
-                card["elixirCost"]
+                elixir_cost_for_average(card)
                 for card in candidates[index:]
                 if card_type(card) is kind
             )
@@ -136,7 +137,7 @@ def _select_elixir_fillers(candidates_by_type, needed, chosen_total, bounds):
             result = search(
                 index + 1,
                 remaining,
-                total + card["elixirCost"],
+                total + elixir_cost_for_average(card),
                 selected,
             )
             if result is not None:
@@ -174,7 +175,9 @@ def _select_untyped_elixir_fillers(candidates, needed, chosen_total, bounds):
             failed_states.add(state)
             return None
 
-        costs = sorted(card["elixirCost"] for card in candidates[index:])
+        costs = sorted(
+            elixir_cost_for_average(card) for card in candidates[index:]
+        )
         if (max_total is not None and total + sum(costs[:remaining]) > max_total) or (
             min_total is not None
             and total + sum(costs[-remaining:]) < min_total
@@ -187,7 +190,7 @@ def _select_untyped_elixir_fillers(candidates, needed, chosen_total, bounds):
         result = search(
             index + 1,
             remaining - 1,
-            total + card["elixirCost"],
+            total + elixir_cost_for_average(card),
             selected,
         )
         if result is not None:
@@ -251,7 +254,7 @@ def _complete_ordered_deck(
         fillers = _select_elixir_fillers(
             candidates_by_type,
             needed,
-            sum(card["elixirCost"] for card in chosen),
+            sum(elixir_cost_for_average(card) for card in chosen),
             bounds,
         )
         if fillers is None:
@@ -291,7 +294,10 @@ def _complete_untyped_ordered_deck(eligible_cards, slot_cards, constraints):
         fillers = _select_untyped_elixir_fillers(
             candidates,
             needed,
-            sum(card["elixirCost"] for card in [*slot_cards, *required_normal]),
+            sum(
+                elixir_cost_for_average(card)
+                for card in [*slot_cards, *required_normal]
+            ),
             bounds,
         )
         if fillers is None:
@@ -454,7 +460,7 @@ def _validate_generated_deck(deck, eligible_cards, constraints):
         average = average_elixir(deck)
         if average is None:
             raise RuntimeError("generated deck has no static average elixir")
-        total = sum(card["elixirCost"] for card in deck)
+        total = sum(elixir_cost_for_average(card) for card in deck)
         if (min_total is not None and total < min_total) or (
             max_total is not None and total > max_total
         ):
