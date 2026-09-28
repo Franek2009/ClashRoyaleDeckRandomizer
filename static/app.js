@@ -11,6 +11,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const availableModes = cardPool.querySelectorAll(
         'input[name="available_mode"]'
     );
+    const contextHelp = cardPool.querySelector("[data-picker-context-help]");
+    const contextDescriptions = {
+        available: "Cards the randomizer may use.",
+        banned: "Cards that must not appear.",
+        required: "Cards that must appear.",
+    };
     let activeContext = "available";
 
     function checkboxFor(card, context) {
@@ -45,6 +51,16 @@ document.addEventListener("DOMContentLoaded", () => {
             chip.append(remove);
             container.append(chip);
         });
+        if (context === "available") updateAvailableLabel();
+    }
+
+    function updateAvailableLabel() {
+        const label = cardPool.querySelector("[data-available-label]");
+        const mode = cardPool.dataset.availableMode;
+        const count = cardPool.querySelectorAll(
+            'input[name="available_ids"]:checked'
+        ).length;
+        label.textContent = mode === "all" ? "All" : count;
     }
 
     function setContext(context) {
@@ -64,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
         cards.forEach((card) => {
             card.classList.toggle("is-selected", checkboxFor(card, context).checked);
         });
+        contextHelp.textContent = contextDescriptions[context];
     }
 
     function updateAvailableMode() {
@@ -71,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
             'input[name="available_mode"]:checked'
         );
         cardPool.dataset.availableMode = selected ? selected.value : "all";
+        updateAvailableLabel();
     }
 
     contextButtons.forEach((button) => {
@@ -116,6 +134,22 @@ document.addEventListener("DOMContentLoaded", () => {
             card.hidden = !card.dataset.cardName.includes(query);
         });
     });
+
+    cardPool.querySelector("[data-select-all-available]")
+        .addEventListener("click", () => {
+            cardPool.querySelectorAll('input[name="available_ids"]')
+                .forEach((input) => { input.checked = true; });
+            updateChips("available");
+            setContext("available");
+        });
+
+    cardPool.querySelector("[data-clear-available]")
+        .addEventListener("click", () => {
+            cardPool.querySelectorAll('input[name="available_ids"]')
+                .forEach((input) => { input.checked = false; });
+            updateChips("available");
+            setContext("available");
+        });
 
     contexts.forEach(updateChips);
     updateAvailableMode();

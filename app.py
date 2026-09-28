@@ -164,7 +164,7 @@ def _constraints_from_form(form_values):
 def _deck_summary(deck, arranged_deck):
     average = average_elixir(deck)
     if average is None:
-        average_display = "— (Mirror)"
+        average_display = "—"
     else:
         average_display = f"{average:.2f}".rstrip("0")
         if average_display.endswith("."):
@@ -184,6 +184,7 @@ def _deck_summary(deck, arranged_deck):
             card_type(card) is CardType.BUILDING for card in deck
         ),
         "average_elixir": average_display,
+        "has_variable_elixir": average is None,
         "special_slots": [
             {
                 "role": slot.role.value,

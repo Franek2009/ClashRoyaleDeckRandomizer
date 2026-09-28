@@ -75,9 +75,38 @@ def test_card_pool_defaults_to_all_with_empty_lists():
     assert re.search(
         rb'name="available_mode"\s+value="all"\s+checked', response.data
     )
+    assert b"Available (<span data-available-label>All</span>)" in response.data
     assert b'data-selected-count="available">0</span>' in response.data
     assert b'data-selected-count="banned">0</span>' in response.data
     assert b'data-selected-count="required">0</span>' in response.data
+
+
+def test_custom_available_label_uses_selected_count():
+    response = post(
+        app.test_client(),
+        available_mode="custom",
+        available_ids=[26000005, 26000009],
+    )
+
+    assert b"Available (<span data-available-label>2</span>)" in response.data
+
+
+def test_all_mode_retains_saved_custom_available_selection():
+    response = post(
+        app.test_client(),
+        available_mode="all",
+        available_ids=[26000005, 26000009],
+        banned_ids=[26000005],
+        required_ids=[26000005],
+    )
+
+    assert b"Available (<span data-available-label>All</span>)" in response.data
+    for card_id in (b"26000005", b"26000009"):
+        assert re.search(
+            rb'name="available_ids"\s+value="' + card_id
+            + rb'"[^>]*checked',
+            response.data,
+        )
 
 
 def test_custom_available_ids_are_passed_to_backend(monkeypatch):
@@ -194,7 +223,9 @@ def test_mirror_uses_dash_in_picker_and_result():
     assert response.status_code == 200
     assert 28000006 in deck_card_ids(response)
     assert b"N/A" not in response.data
-    assert "—".encode() in response.data
+    assert b'id="summary-average-elixir">\xe2\x80\x94</dd>' in response.data
+    assert b"Mirror has no fixed elixir cost" in response.data
+    assert "— (Mirror)".encode() not in response.data
 
 
 def test_card_picker_and_search_are_rendered():
@@ -207,6 +238,8 @@ def test_card_picker_and_search_are_rendered():
     assert b'data-picker-context="required"' in response.data
     assert response.data.count(b"data-picker-card ") == 122
     assert b'/static/app.js' in response.data
+    assert b"data-select-all-available" in response.data
+    assert b"data-clear-available" in response.data
 
 
 def test_generate_default_renders_eight_cards_and_derived_counts():

@@ -106,7 +106,7 @@
 
                         <div class="picker-contexts" role="group" aria-label="Card selection list">
                             <button type="button" class="picker-context is-active" data-picker-context="available" aria-pressed="true">
-                                Available (<span data-selected-count="available">{{ form_values['available_ids']|length }}</span>)
+                                Available (<span data-available-label>{% if form_values['available_mode'] == 'all' %}All{% else %}{{ form_values['available_ids']|length }}{% endif %}</span>)
                             </button>
                             <button type="button" class="picker-context" data-picker-context="banned" aria-pressed="false">
                                 Banned (<span data-selected-count="banned">{{ form_values['banned_ids']|length }}</span>)
@@ -116,11 +116,20 @@
                             </button>
                         </div>
 
+                        <p class="picker-context-help" data-picker-context-help>
+                            Cards the randomizer may use.
+                        </p>
+
                         <p class="available-all-message" data-available-all-message>
-                            All cards are currently available. Choose Custom selection to restrict the pool.
+                            All cards are available. Switch to Custom selection to edit this pool.
                         </p>
 
                         <div class="picker-workspace" data-picker-workspace>
+                            <div class="available-actions" data-available-actions>
+                                <button type="button" data-select-all-available>Select all</button>
+                                <button type="button" data-clear-available>Clear</button>
+                            </div>
+
                             <div class="picker-search-field">
                                 <label for="card-search">Search cards</label>
                                 <input id="card-search" type="search" placeholder="e.g. Wizard" autocomplete="off" data-card-search>
@@ -219,16 +228,16 @@
 
                 <h2>Your Deck</h2>
 
-                <div class="result-summary">
+                <div class="result-summary" aria-label="Deck result summary">
                     <section class="summary-group" aria-labelledby="slot-summary-heading">
                         <h3 id="slot-summary-heading">Special Slots</h3>
                         <dl class="slot-summary">
                             {% for slot in deck_summary['special_slots'] %}
                                 <div>
                                     <dt>
-                                        {% if slot['role'] == 'evolution' %}Evolution Slot
-                                        {% elif slot['role'] == 'hero' %}Hero Slot
-                                        {% else %}Wild Slot{% endif %}
+                                        {% if slot['role'] == 'evolution' %}Evolution
+                                        {% elif slot['role'] == 'hero' %}Hero
+                                        {% else %}Wild{% endif %}
                                     </dt>
                                     <dd id="summary-slot-{{ slot['role'] }}">
                                         {% if slot['form'] == 'normal' %}Off
@@ -248,6 +257,9 @@
                             <div><dt>Buildings</dt><dd id="summary-buildings">{{ deck_summary['buildings'] }}</dd></div>
                             <div><dt>Average Elixir</dt><dd id="summary-average-elixir">{{ deck_summary['average_elixir'] }}</dd></div>
                         </dl>
+                        {% if deck_summary['has_variable_elixir'] %}
+                            <p class="summary-help">Mirror has no fixed elixir cost.</p>
+                        {% endif %}
                     </section>
                 </div>
 

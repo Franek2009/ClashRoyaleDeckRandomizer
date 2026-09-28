@@ -67,7 +67,7 @@ body {
 
 .slot-controls {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.35fr);
     gap: 16px;
     margin-top: 16px;
 }
@@ -114,7 +114,7 @@ body {
 .segment-option span {
     display: flex;
     min-height: 42px;
-    padding: 8px 6px;
+    padding: 9px 8px;
     align-items: center;
     justify-content: center;
     text-align: center;
@@ -174,10 +174,10 @@ body {
 }
 
 .constraint-help {
-    margin: 6px 0 0;
-    color: #9ca3af;
-    font-size: 0.85rem;
-    line-height: 1.4;
+    margin: 8px 0 0;
+    color: #b6c1d1;
+    font-size: 0.9rem;
+    line-height: 1.5;
 }
 
 .constraint-grid-two + .constraint-help,
@@ -203,7 +203,7 @@ body {
 .picker-contexts {
     display: flex;
     gap: 8px;
-    margin: 18px 0 14px;
+    margin: 18px 0 8px;
     overflow-x: auto;
 }
 
@@ -227,9 +227,17 @@ body {
 }
 
 .picker-context:focus-visible,
-.card-chip button:focus-visible {
+.card-chip button:focus-visible,
+.available-actions button:focus-visible {
     outline: 2px solid #c4b5fd;
     outline-offset: 2px;
+}
+
+.picker-context-help {
+    margin: 0 0 14px;
+    color: #b6c1d1;
+    font-size: 0.88rem;
+    line-height: 1.45;
 }
 
 .available-all-message {
@@ -241,6 +249,34 @@ body {
     color: #cbd5e1;
     background: #111827;
     font-size: 0.9rem;
+}
+
+.available-actions {
+    display: none;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.js .card-pool[data-context="available"][data-available-mode="custom"] .available-actions {
+    display: flex;
+}
+
+.available-actions button {
+    min-height: 38px;
+    padding: 7px 13px;
+    border: 1px solid #7c3aed;
+    border-radius: 8px;
+    color: #ddd6fe;
+    background: #1e1b4b;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.available-actions button:hover {
+    background: #312e81;
 }
 
 .js .card-pool[data-context="available"][data-available-mode="all"] .available-all-message {
@@ -459,6 +495,10 @@ body {
 
 /* Deck */
 
+.deck-section {
+    margin-top: 56px;
+}
+
 .deck-section h2 {
     text-align: center;
     margin-bottom: 25px;
@@ -467,16 +507,21 @@ body {
 .result-summary {
     display: grid;
     grid-template-columns: minmax(0, 3fr) minmax(0, 5fr);
-    gap: 16px;
-    margin: 0 0 25px;
+    gap: 0;
+    margin: 0 0 30px;
+    overflow: hidden;
+    border: 1px solid #374151;
+    border-radius: 12px;
+    background: #111827;
 }
 
 .summary-group {
     min-width: 0;
-    padding: 16px;
-    border: 1px solid #374151;
-    border-radius: 12px;
-    background: #111827;
+    padding: 18px;
+}
+
+.summary-group + .summary-group {
+    border-left: 1px solid #374151;
 }
 
 .summary-group h3 {
@@ -513,6 +558,13 @@ body {
 .slot-summary dd {
     margin: 4px 0 0;
     font-weight: bold;
+}
+
+.summary-help {
+    margin: 12px 0 0;
+    color: #b6c1d1;
+    font-size: 0.85rem;
+    line-height: 1.4;
 }
 
 .wild-form-notice {
@@ -557,12 +609,15 @@ body {
     z-index: 1;
     top: 8px;
     left: 8px;
-    padding: 5px 8px;
-    border-radius: 999px;
-    color: white;
-    background: rgba(17, 24, 39, 0.88);
-    font-size: 0.72rem;
-    font-weight: bold;
+    padding: 5px 7px;
+    border: 1px solid rgba(203, 213, 225, 0.7);
+    border-radius: 4px;
+    color: #e5e7eb;
+    background: rgba(17, 24, 39, 0.92);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
 }
 
 .card:hover {
@@ -612,8 +667,8 @@ body {
 .form-badge {
     display: inline-block;
     padding: 4px 8px;
-    border: 1px solid #8b5cf6;
-    border-radius: 6px;
+    border: 2px solid #8b5cf6;
+    border-radius: 999px;
     color: #ddd6fe;
     background: #2e1065;
     font-size: 0.8rem;
@@ -681,6 +736,11 @@ body {
         grid-template-columns: 1fr;
     }
 
+    .summary-group + .summary-group {
+        border-top: 1px solid #374151;
+        border-left: 0;
+    }
+
     .deck {
         grid-template-columns: repeat(2, 1fr);
         gap: 15px;
@@ -726,6 +786,11 @@ body {
     .picker-context {
         padding: 8px 11px;
         font-size: 0.82rem;
+    }
+
+    .available-actions button {
+        min-height: 42px;
+        flex: 1 1 0;
     }
 
     .card-picker-grid {
