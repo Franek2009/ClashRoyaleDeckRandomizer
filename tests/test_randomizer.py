@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from randomizer import (
     DeckSlot,
     SlotRole,
     arrange_deck,
+    average_elixir,
     card_type,
     get_random_deck,
     has_evolution,
@@ -25,6 +27,7 @@ def make_card(
     rarity="common",
     has_evo=False,
     has_hero_form=False,
+    elixir_cost=3,
 ):
     icon_urls = {"medium": f"https://example.com/{card_id}.png"}
     max_evolution_level = 0
@@ -45,6 +48,8 @@ def make_card(
         "rarity": rarity,
         "iconUrls": icon_urls,
     }
+    if elixir_cost is not None:
+        card["elixirCost"] = elixir_cost
     if max_evolution_level:
         card["maxEvolutionLevel"] = max_evolution_level
     return card
@@ -81,7 +86,13 @@ def make_typed_catalog():
         *[make_card(card_id) for card_id in range(26000008, 26000015)],
     ]
     buildings = [make_card(card_id) for card_id in range(27000001, 27000011)]
-    spells = [make_card(card_id) for card_id in range(28000001, 28000011)]
+    spells = [
+        make_card(
+            card_id,
+            elixir_cost=None if card_id == 28000006 else 3,
+        )
+        for card_id in range(28000001, 28000011)
+    ]
     return troops + buildings + spells
 
 
@@ -121,6 +132,35 @@ def test_card_type_rejects_unknown_card_id_space(card_id):
 def test_card_type_rejects_bool_card_id():
     with pytest.raises(ValueError, match="card ID must be an integer"):
         card_type({"id": True})
+
+
+def test_average_elixir_for_three_elixir_deck():
+    deck = [make_card(26000001 + index, elixir_cost=3) for index in range(8)]
+
+    assert average_elixir(deck) == 3.0
+
+
+def test_average_elixir_for_mixed_deck():
+    costs = [3, 3, 4, 4, 2, 5, 4, 3]
+    deck = [
+        make_card(26000001 + index, elixir_cost=cost)
+        for index, cost in enumerate(costs)
+    ]
+
+    assert average_elixir(deck) == 3.5
+
+
+@pytest.mark.parametrize("missing_id", [28000006, 26000001])
+def test_average_elixir_is_none_when_a_card_has_no_cost(missing_id):
+    deck = [make_card(26000001 + index) for index in range(8)]
+    deck[0] = make_card(missing_id, elixir_cost=None)
+
+    assert average_elixir(deck) is None
+
+
+def test_average_elixir_requires_eight_cards():
+    with pytest.raises(ValueError, match="exactly eight"):
+        average_elixir([make_card(26000001)] * 7)
 
 
 @pytest.mark.parametrize(
@@ -339,6 +379,8 @@ def test_default_constraints_are_unrestricted():
     assert constraints.hero_champion_count is None
     assert constraints.spell_count is None
     assert constraints.building_count is None
+    assert constraints.min_average_elixir is None
+    assert constraints.max_average_elixir is None
 
 
 def test_available_none_uses_full_catalog():
@@ -573,6 +615,51 @@ def test_type_counts_reject_invalid_values(field, value):
 
 
 @pytest.mark.parametrize(
+    "field", ["min_average_elixir", "max_average_elixir"]
+)
+@pytest.mark.parametrize(
+    "value", [0, -1, True, "3.0", math.nan, math.inf, -math.inf]
+)
+def test_average_elixir_constraints_reject_invalid_values(field, value):
+    constraints = DeckConstraints(**{field: value})
+
+    with pytest.raises(ConstraintError, match="positive finite number"):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+@pytest.mark.parametrize("value", [3, 3.0])
+def test_average_elixir_constraints_accept_int_and_float(value):
+    constraints = DeckConstraints(
+        min_average_elixir=value,
+        max_average_elixir=value,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+
+    assert average_elixir(deck) == 3.0
+
+
+def test_minimum_average_cannot_exceed_maximum():
+    constraints = DeckConstraints(
+        min_average_elixir=3.1,
+        max_average_elixir=3.0,
+    )
+
+    with pytest.raises(ConstraintError, match="cannot be greater"):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+def test_non_integral_exact_average_can_be_mathematically_impossible():
+    constraints = DeckConstraints(
+        min_average_elixir=3.3,
+        max_average_elixir=3.3,
+    )
+
+    with pytest.raises(ConstraintError, match="cannot be achieved"):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+@pytest.mark.parametrize(
     ("spell_count", "building_count"),
     [(0, None), (8, 0), (None, 0), (0, 8), (5, 3)],
 )
@@ -643,6 +730,160 @@ def test_unrestricted_card_types_do_not_become_zero_constraints():
     assert active_counts(arranged) == (2, 1)
     assert deck_type_count(deck, CardType.SPELL) >= 1
     assert deck_type_count(deck, CardType.BUILDING) >= 1
+
+
+def test_mirror_can_be_available_without_average_constraint():
+    deck = get_random_deck(
+        make_typed_catalog(),
+        DeckConstraints(evolution_count=0, hero_champion_count=0),
+    )
+
+    assert len(deck) == 8
+
+
+def test_mirror_can_be_required_without_average_constraint():
+    constraints = DeckConstraints(
+        required_ids=frozenset({28000006}),
+        evolution_count=0,
+        hero_champion_count=0,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+
+    assert 28000006 in {card["id"] for card in deck}
+    assert average_elixir(deck) is None
+
+
+@pytest.mark.parametrize(
+    "average_constraint",
+    [
+        {"min_average_elixir": 3.0},
+        {"max_average_elixir": 3.0},
+    ],
+)
+def test_required_mirror_conflicts_with_average_constraint(
+    average_constraint,
+):
+    constraints = DeckConstraints(
+        required_ids=frozenset({28000006}),
+        **average_constraint,
+    )
+
+    with pytest.raises(ConstraintError, match="Mirror cannot be required"):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+def test_available_mirror_is_excluded_by_average_range():
+    constraints = DeckConstraints(
+        min_average_elixir=3.0,
+        max_average_elixir=3.0,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+
+    assert 28000006 not in {card["id"] for card in deck}
+    assert average_elixir(deck) == 3.0
+
+
+def test_banned_mirror_with_average_constraint_uses_normal_ban_behavior():
+    constraints = DeckConstraints(
+        banned_ids=frozenset({28000006}),
+        min_average_elixir=3.0,
+    )
+
+    deck = get_random_deck(make_typed_catalog(), constraints)
+
+    assert 28000006 not in {card["id"] for card in deck}
+    assert average_elixir(deck) >= 3.0
+
+
+@pytest.mark.parametrize(
+    "constraints",
+    [
+        DeckConstraints(min_average_elixir=3.0),
+        DeckConstraints(max_average_elixir=3.0),
+        DeckConstraints(
+            min_average_elixir=2.9,
+            max_average_elixir=3.1,
+        ),
+        DeckConstraints(
+            min_average_elixir=3.0,
+            max_average_elixir=3.0,
+        ),
+    ],
+)
+def test_average_elixir_ranges_are_respected(constraints):
+    deck = get_random_deck(make_typed_catalog(), constraints)
+    average = average_elixir(deck)
+
+    assert average is not None
+    if constraints.min_average_elixir is not None:
+        assert average >= constraints.min_average_elixir
+    if constraints.max_average_elixir is not None:
+        assert average <= constraints.max_average_elixir
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("max_average_elixir", 2.9, "cheapest possible"),
+        ("min_average_elixir", 3.1, "most expensive possible"),
+    ],
+)
+def test_unreachable_average_elixir_range_is_rejected(field, value, message):
+    constraints = DeckConstraints(**{field: value})
+
+    with pytest.raises(ConstraintError, match=message):
+        get_random_deck(make_typed_catalog(), constraints)
+
+
+def test_solver_finds_exact_average_with_varied_card_costs():
+    catalog = make_typed_catalog()
+    for index, card in enumerate(catalog):
+        if card["id"] != 28000006:
+            card["elixirCost"] = 1 + index % 5
+    constraints = DeckConstraints(
+        min_average_elixir=3.25,
+        max_average_elixir=3.25,
+    )
+
+    deck = get_random_deck(catalog, constraints)
+
+    assert average_elixir(deck) == 3.25
+
+
+def test_required_cards_can_make_maximum_average_impossible():
+    catalog = make_typed_catalog()
+    for card in catalog:
+        if card["id"] != 28000006:
+            card["elixirCost"] = 1
+    for card in catalog:
+        if card["id"] in {26000001, 26000002}:
+            card["elixirCost"] = 8
+    constraints = DeckConstraints(
+        required_ids=frozenset({26000001, 26000002}),
+        max_average_elixir=2.0,
+    )
+
+    with pytest.raises(ConstraintError, match="cheapest possible"):
+        get_random_deck(catalog, constraints)
+
+
+def test_required_cards_can_make_minimum_average_impossible():
+    catalog = make_typed_catalog()
+    for card in catalog:
+        if card["id"] != 28000006:
+            card["elixirCost"] = 5
+    for card in catalog:
+        if card["id"] in {26000001, 26000002}:
+            card["elixirCost"] = 1
+    constraints = DeckConstraints(
+        required_ids=frozenset({26000001, 26000002}),
+        min_average_elixir=4.5,
+    )
+
+    with pytest.raises(ConstraintError, match="most expensive possible"):
+        get_random_deck(catalog, constraints)
 
 
 def test_spell_and_building_counts_over_eight_are_rejected():
@@ -783,6 +1024,119 @@ def test_type_and_special_form_constraints_are_satisfied_together():
     assert active_counts(arranged) == (2, 1)
     assert deck_type_count(deck, CardType.SPELL) == 2
     assert deck_type_count(deck, CardType.BUILDING) == 1
+
+
+@pytest.mark.parametrize(
+    "constraints",
+    [
+        DeckConstraints(
+            banned_ids=frozenset({28000010}),
+            required_ids=frozenset({28000001}),
+            evolution_count=2,
+            hero_champion_count=1,
+            spell_count=2,
+            building_count=1,
+            min_average_elixir=2.9,
+            max_average_elixir=3.1,
+        ),
+        DeckConstraints(
+            evolution_count=1,
+            hero_champion_count=2,
+            spell_count=0,
+            building_count=2,
+            max_average_elixir=3.0,
+        ),
+        DeckConstraints(
+            spell_count=2,
+            building_count=1,
+            min_average_elixir=3.0,
+        ),
+        DeckConstraints(
+            evolution_count=2,
+            hero_champion_count=1,
+            min_average_elixir=3.0,
+            max_average_elixir=3.0,
+        ),
+    ],
+)
+def test_average_elixir_integrates_with_all_existing_constraints(constraints):
+    deck = get_random_deck(make_typed_catalog(), constraints)
+    arranged = arrange_deck(deck, constraints)
+    deck_ids = {card["id"] for card in deck}
+    average = average_elixir(deck)
+
+    assert len(deck) == len(deck_ids) == 8
+    assert constraints.required_ids <= deck_ids
+    assert not deck_ids & constraints.banned_ids
+    assert 28000006 not in deck_ids
+    if constraints.evolution_count is not None:
+        assert active_counts(arranged)[0] == constraints.evolution_count
+    if constraints.hero_champion_count is not None:
+        assert active_counts(arranged)[1] == constraints.hero_champion_count
+    if constraints.spell_count is not None:
+        assert deck_type_count(deck, CardType.SPELL) == constraints.spell_count
+    if constraints.building_count is not None:
+        assert (
+            deck_type_count(deck, CardType.BUILDING)
+            == constraints.building_count
+        )
+    if constraints.min_average_elixir is not None:
+        assert average >= constraints.min_average_elixir
+    if constraints.max_average_elixir is not None:
+        assert average <= constraints.max_average_elixir
+
+
+@pytest.mark.parametrize(
+    "constraints",
+    [
+        DeckConstraints(
+            evolution_count=2,
+            hero_champion_count=1,
+            spell_count=2,
+            building_count=1,
+            min_average_elixir=3.0,
+            max_average_elixir=3.0,
+        ),
+        DeckConstraints(
+            evolution_count=1,
+            hero_champion_count=2,
+            spell_count=0,
+            building_count=2,
+            max_average_elixir=3.0,
+        ),
+        DeckConstraints(
+            spell_count=3,
+            building_count=2,
+            min_average_elixir=2.9,
+        ),
+    ],
+)
+def test_average_elixir_constraint_stress_test(constraints):
+    for _ in range(20):
+        deck = get_random_deck(make_typed_catalog(), constraints)
+        arranged = arrange_deck(deck, constraints)
+        average = average_elixir(deck)
+
+        assert len(deck) == len({card["id"] for card in deck}) == 8
+        assert 28000006 not in {card["id"] for card in deck}
+        if constraints.evolution_count is not None:
+            assert active_counts(arranged)[0] == constraints.evolution_count
+        if constraints.hero_champion_count is not None:
+            assert active_counts(arranged)[1] == constraints.hero_champion_count
+        if constraints.spell_count is not None:
+            assert (
+                deck_type_count(deck, CardType.SPELL)
+                == constraints.spell_count
+            )
+        if constraints.building_count is not None:
+            assert (
+                deck_type_count(deck, CardType.BUILDING)
+                == constraints.building_count
+            )
+        if constraints.min_average_elixir is not None:
+            assert average >= constraints.min_average_elixir
+        if constraints.max_average_elixir is not None:
+            assert average <= constraints.max_average_elixir
 
 
 @pytest.mark.parametrize(

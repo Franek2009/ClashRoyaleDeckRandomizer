@@ -16,6 +16,8 @@ from card_model import (
 from constraints import (
     ConstraintError,
     DeckConstraints,
+    _elixir_total_bounds,
+    average_elixir,
     validate_constraints,
     validate_special_count,
 )
@@ -99,6 +101,85 @@ def _resolve_special_assignment(cards, required_ids, constraints):
     return None
 
 
+def _select_elixir_fillers(candidates_by_type, needed, chosen_total, bounds):
+    candidates = [
+        card
+        for kind in CardType
+        for card in candidates_by_type[kind]
+        if needed[kind]
+    ]
+    random.shuffle(candidates)
+    min_total, max_total = bounds
+    failed_states = set()
+
+    def search(index, remaining, total, selected):
+        state = (index, tuple(remaining[kind] for kind in CardType), total)
+        if state in failed_states:
+            return None
+        if not any(remaining.values()):
+            if (min_total is None or total >= min_total) and (
+                max_total is None or total <= max_total
+            ):
+                return list(selected)
+            failed_states.add(state)
+            return None
+
+        available_costs = {
+            kind: sorted(
+                card["elixirCost"]
+                for card in candidates[index:]
+                if card_type(card) is kind
+            )
+            for kind in CardType
+        }
+        if any(
+            len(available_costs[kind]) < remaining[kind]
+            for kind in CardType
+        ):
+            failed_states.add(state)
+            return None
+
+        cheapest = total + sum(
+            sum(available_costs[kind][: remaining[kind]])
+            for kind in CardType
+        )
+        most_expensive = total + sum(
+            sum(available_costs[kind][-remaining[kind] :])
+            if remaining[kind]
+            else 0
+            for kind in CardType
+        )
+        if (max_total is not None and cheapest > max_total) or (
+            min_total is not None and most_expensive < min_total
+        ):
+            failed_states.add(state)
+            return None
+
+        card = candidates[index]
+        kind = card_type(card)
+        if remaining[kind]:
+            remaining[kind] -= 1
+            selected.append(card)
+            result = search(
+                index + 1,
+                remaining,
+                total + card["elixirCost"],
+                selected,
+            )
+            if result is not None:
+                return result
+            selected.pop()
+            remaining[kind] += 1
+
+        result = search(index + 1, remaining, total, selected)
+        if result is not None:
+            return result
+        failed_states.add(state)
+        return None
+
+    return search(0, dict(needed), chosen_total, [])
+
+
 def _complete_deck(eligible_cards, required_ids, evolutions, heroes, constraints):
     chosen_by_id = {
         card["id"]: card for card in (*evolutions, *heroes)
@@ -118,7 +199,13 @@ def _complete_deck(eligible_cards, required_ids, evolutions, heroes, constraints
         and (not is_champion(card) or card["id"] in hero_ids)
     ]
     chosen = list(chosen_by_id.values())
-    if constraints.spell_count is None and constraints.building_count is None:
+    elixir_bounds = _elixir_total_bounds(constraints)
+    average_is_active = any(bound is not None for bound in elixir_bounds)
+    if (
+        constraints.spell_count is None
+        and constraints.building_count is None
+        and not average_is_active
+    ):
         needed = 8 - len(chosen)
         if len(candidates) < needed:
             return None
@@ -170,10 +257,21 @@ def _complete_deck(eligible_cards, required_ids, evolutions, heroes, constraints
             continue
 
         completed = list(chosen)
-        for kind in CardType:
-            completed.extend(
-                random.sample(candidates_by_type[kind], needed[kind])
+        if average_is_active:
+            fillers = _select_elixir_fillers(
+                candidates_by_type,
+                needed,
+                sum(card["elixirCost"] for card in chosen),
+                elixir_bounds,
             )
+            if fillers is None:
+                continue
+            completed.extend(fillers)
+        else:
+            for kind in CardType:
+                completed.extend(
+                    random.sample(candidates_by_type[kind], needed[kind])
+                )
         return random.sample(completed, len(completed))
     return None
 
@@ -302,6 +400,21 @@ def _validate_generated_deck(deck, eligible_cards, constraints):
         ) != requested:
             raise ConstraintError(
                 f"generated deck has the wrong {kind.value} count"
+            )
+
+    min_total, max_total = _elixir_total_bounds(constraints)
+    if min_total is not None or max_total is not None:
+        average = average_elixir(deck)
+        if average is None:
+            raise RuntimeError(
+                "generated deck has no static average elixir"
+            )
+        total = sum(card["elixirCost"] for card in deck)
+        if (min_total is not None and total < min_total) or (
+            max_total is not None and total > max_total
+        ):
+            raise RuntimeError(
+                "generated deck violates average elixir constraints"
             )
 
 

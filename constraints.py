@@ -1,6 +1,10 @@
 from dataclasses import dataclass
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 
 from card_model import CardType, card_type, has_evolution, has_hero, is_champion
+
+
+MIRROR_ID = 28000006
 
 
 class ConstraintError(ValueError):
@@ -16,6 +20,46 @@ class DeckConstraints:
     hero_champion_count: int | None = None
     spell_count: int | None = None
     building_count: int | None = None
+    min_average_elixir: float | None = None
+    max_average_elixir: float | None = None
+
+
+def average_elixir(cards):
+    if len(cards) != 8:
+        raise ValueError("average elixir requires exactly eight cards")
+    costs = [card.get("elixirCost") for card in cards]
+    if any(cost is None for cost in costs):
+        return None
+    return sum(costs) / 8
+
+
+def _validate_average(name, value):
+    if (
+        value is not None
+        and (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not Decimal(str(value)).is_finite()
+            or value <= 0
+        )
+    ):
+        raise ConstraintError(f"{name} must be a positive finite number")
+
+
+def _elixir_total_bounds(constraints):
+    minimum = constraints.min_average_elixir
+    maximum = constraints.max_average_elixir
+    min_total = (
+        int((Decimal(str(minimum)) * 8).to_integral_value(ROUND_CEILING))
+        if minimum is not None
+        else None
+    )
+    max_total = (
+        int((Decimal(str(maximum)) * 8).to_integral_value(ROUND_FLOOR))
+        if maximum is not None
+        else None
+    )
+    return min_total, max_total
 
 
 def validate_special_count(name, value):
@@ -94,6 +138,25 @@ def validate_constraints(cards, constraints):
     )
     _validate_type_count("spell_count", constraints.spell_count)
     _validate_type_count("building_count", constraints.building_count)
+    _validate_average("min_average_elixir", constraints.min_average_elixir)
+    _validate_average("max_average_elixir", constraints.max_average_elixir)
+    if (
+        constraints.min_average_elixir is not None
+        and constraints.max_average_elixir is not None
+        and constraints.min_average_elixir > constraints.max_average_elixir
+    ):
+        raise ConstraintError(
+            "min_average_elixir cannot be greater than max_average_elixir"
+        )
+    min_total, max_total = _elixir_total_bounds(constraints)
+    if (
+        min_total is not None
+        and max_total is not None
+        and min_total > max_total
+    ):
+        raise ConstraintError(
+            "average elixir range cannot be achieved by an 8-card deck"
+        )
     if (
         constraints.spell_count is not None
         and constraints.building_count is not None
@@ -114,6 +177,22 @@ def validate_constraints(cards, constraints):
             f"{constraints.hero_champion_count} Hero/Champions require "
             "4 special forms, but only 3 slots are available"
         )
+
+    average_is_active = min_total is not None or max_total is not None
+    if average_is_active and MIRROR_ID in constraints.required_ids:
+        raise ConstraintError(
+            "Mirror cannot be required when an average elixir constraint "
+            "is active"
+        )
+    if average_is_active:
+        eligible_cards = [
+            card for card in eligible_cards if card["id"] != MIRROR_ID
+        ]
+        if len(eligible_cards) < 8:
+            raise ConstraintError(
+                f"effective card pool has {len(eligible_cards)} cards after "
+                "excluding Mirror; at least 8 are required"
+            )
 
     if constraints.evolution_count is not None:
         available_evolutions = sum(map(has_evolution, eligible_cards))
@@ -167,5 +246,31 @@ def validate_constraints(cards, constraints):
             f"{required_champions} required Champions cannot fit in "
             f"{constraints.hero_champion_count} requested Hero/Champion slots"
         )
+
+    if average_is_active:
+        required_cards = [
+            catalog_by_id[card_id] for card_id in constraints.required_ids
+        ]
+        required_total = sum(card["elixirCost"] for card in required_cards)
+        required_ids = constraints.required_ids
+        remaining_costs = sorted(
+            card["elixirCost"]
+            for card in eligible_cards
+            if card["id"] not in required_ids
+        )
+        needed = 8 - len(required_cards)
+        cheapest_total = required_total + sum(remaining_costs[:needed])
+        most_expensive_total = required_total + sum(
+            remaining_costs[-needed:] if needed else []
+        )
+        if max_total is not None and cheapest_total > max_total:
+            raise ConstraintError(
+                "average elixir maximum is below the cheapest possible deck"
+            )
+        if min_total is not None and most_expensive_total < min_total:
+            raise ConstraintError(
+                "average elixir minimum is above the most expensive possible "
+                "deck"
+            )
 
     return eligible_cards
