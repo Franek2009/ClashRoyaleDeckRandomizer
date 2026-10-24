@@ -6,7 +6,7 @@ link for opening the resulting deck in Clash Royale.
 
 ## Live Demo
 
-[Open Clash Royale Deck Randomizer](https://clash-royale-deck-randomizer.onrender.com/)
+I am working on it, the php2shell made it dangerous.
 
 ## Features
 
