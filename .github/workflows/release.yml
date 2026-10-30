@@ -33,7 +33,11 @@ jobs:
           node-version: 22
 
       - name: Test static application
-        run: npm test
+        run: |
+          npm ci
+          npm test
+          npx playwright install chromium --with-deps
+          npm run test:e2e
 
       - name: Run production smoke test
         run: |

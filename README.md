@@ -41,7 +41,10 @@ supported because browsers restrict loading `cards.json` from local files.
 The deployed JavaScript implementation requires Node.js 22 or newer for tests:
 
 ```bash
+npm ci
 npm test
+npx playwright install chromium --with-deps
+npm run test:e2e
 ```
 
 The retained Flask implementation has its original Python test suite:
@@ -55,7 +58,9 @@ python -m pytest -q
 
 GitHub Actions runs both suites. JavaScript tests cover catalog classification,
 special-slot safety, uniqueness, card pools, type and Elixir constraints, and
-deck-link construction, including repeated randomized generation.
+deck-link construction, including repeated randomized generation. Playwright
+also exercises the complete interface in desktop Chromium and an emulated
+Pixel viewport.
 
 ## Project structure
 

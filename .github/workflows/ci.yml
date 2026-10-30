@@ -19,8 +19,15 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
+          cache: npm
+      - name: Install JavaScript dependencies
+        run: npm ci
       - name: Test static application
         run: npm test
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+      - name: Test browser interface
+        run: npm run test:e2e
 
   test:
     runs-on: ubuntu-latest
