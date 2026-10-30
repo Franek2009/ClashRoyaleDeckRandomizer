@@ -459,60 +459,6 @@ body {
 
 /* Generate button */
 
-.preset-panel {
-    max-width: 980px;
-    margin: 28px auto 18px;
-    padding: 18px;
-    border: 1px solid #374151;
-    border-radius: 12px;
-    background: #111827;
-    text-align: left;
-}
-
-.preset-panel h2,
-.preset-panel p {
-    margin: 0;
-}
-
-.preset-panel h2 {
-    font-size: 1.05rem;
-}
-
-.preset-panel > div:first-child p,
-.preset-status {
-    margin-top: 5px;
-    color: #9ca3af;
-    font-size: 0.85rem;
-}
-
-.preset-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 15px;
-}
-
-.preset-list button {
-    padding: 8px 12px;
-    border: 1px solid #4b5563;
-    border-radius: 999px;
-    color: #e5e7eb;
-    background: #1f2937;
-    cursor: pointer;
-}
-
-.preset-list button:hover,
-.preset-list button.is-active {
-    border-color: #a78bfa;
-    background: #5b21b6;
-}
-
-.preset-panel .preset-status {
-    min-height: 1.2em;
-    margin-top: 10px;
-    color: #c4b5fd;
-}
-
 .generate-button {
     border: none;
     border-radius: 10px;
