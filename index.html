@@ -42,7 +42,7 @@
                         </div>
                     </section>
                     <section class="constraint-group" aria-labelledby="card-filters-heading" data-card-filters>
-                        <h2 id="card-filters-heading">Card Filters</h2>
+                        <div class="section-heading"><h2 id="card-filters-heading">Card Filters</h2><button type="button" class="text-button" data-clear-filters>Clear filters</button></div>
                         <p class="constraint-help">Narrow the available card pool. Selected filters work together.</p>
                         <fieldset class="filter-fieldset">
                             <legend>Rarity <span>(leave empty for all)</span></legend>
@@ -68,7 +68,10 @@
                     <section class="constraint-group" aria-labelledby="deck-composition-heading"><h2 id="deck-composition-heading">Deck Composition</h2><div class="constraint-grid-two"><div class="constraint-field"><label for="spell_count">Spells</label><select id="spell_count" name="spell_count" data-count-select><option value="any">Any</option></select></div><div class="constraint-field"><label for="building_count">Buildings</label><select id="building_count" name="building_count" data-count-select><option value="any">Any</option></select></div></div><p class="constraint-help">Exact number in the 8-card deck.</p></section>
                     <section class="constraint-group" aria-labelledby="average-elixir-heading"><h2 id="average-elixir-heading">Average Elixir</h2><div class="constraint-grid-two"><div class="constraint-field"><label for="min_average_elixir">Deck average elixir — minimum</label><input id="min_average_elixir" name="min_average_elixir" type="number" min="0.1" step="0.1"></div><div class="constraint-field"><label for="max_average_elixir">Deck average elixir — maximum</label><input id="max_average_elixir" name="max_average_elixir" type="number" min="0.1" step="0.1"></div></div><p class="constraint-help">Limits the average cost of the entire 8-card deck, not individual card costs.</p></section>
                 </div>
-                <button type="submit" class="generate-button">Generate Deck</button>
+                <div class="form-actions">
+                    <button type="button" class="secondary-button" data-reset-settings>Reset all settings</button>
+                    <button type="submit" class="generate-button">Generate Deck</button>
+                </div>
             </form>
             <p class="error-message" role="alert" data-error hidden></p>
         </header>

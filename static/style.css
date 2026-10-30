@@ -246,6 +246,17 @@ body {
     color: #c4b5fd;
 }
 
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.section-heading h2 {
+    margin: 0;
+}
+
 .constraint-grid-two + .constraint-help,
 .slot-controls + .constraint-help {
     margin-top: 12px;
@@ -556,6 +567,13 @@ body {
 .generate-button:focus-visible {
     outline: 3px solid #c4b5fd;
     outline-offset: 3px;
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
 }
 
 
@@ -956,9 +974,14 @@ body {
         padding: 15px;
     }
 
-    .generate-button {
+    .generate-button,
+    .form-actions .secondary-button {
         width: 100%;
         min-height: 46px;
+    }
+
+    .section-heading {
+        align-items: start;
     }
 
     .picker-contexts {

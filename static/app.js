@@ -1,7 +1,7 @@
 import {ActiveForm, ConstraintError, SlotRole, averageElixir, cardType, generateDeck, generateDeckLink, hasEvolution, hasHero} from "./randomizer.js";
 import {clearHistory, readDecks, removeDeck, restoreSlots, saveDeck, toggleFavorite} from "./deck-store.js";
 import {deckInsights, elixirDistribution} from "./deck-analysis.js";
-import {filterCards} from "./card-filter.js";
+import {filterCards, filteredSelectionIssue} from "./card-filter.js";
 
 document.documentElement.classList.add("js");
 const form = document.querySelector("[data-generator-form]");
@@ -85,7 +85,10 @@ function constraintsFromForm() {
         throw new ConstraintError("minimum card cost exceeds maximum", "invalid_card_filter");
     let availableIds = data.get("available_mode") === "all" ? null : checkedIds("available");
     if (filtersAreActive(filters)) {
-        const filteredIds = new Set(filterCards(cards, filters).map(card => card.id));
+        const filteredCards = filterCards(cards, filters);
+        const issue = filteredSelectionIssue(filteredCards, checkedIds("required"), lockedIds);
+        if (issue) throw new ConstraintError("filtered card selection is invalid", issue);
+        const filteredIds = new Set(filteredCards.map(card => card.id));
         availableIds = availableIds == null ? filteredIds : new Set([...availableIds].filter(id => filteredIds.has(id)));
     }
     return {availableIds, bannedIds: checkedIds("banned"), requiredIds: checkedIds("required"), lockedIds, evolutionSlotEnabled: data.get("evolution_slot_enabled") === "on", heroSlotEnabled: data.get("hero_slot_enabled") === "on", wildSlotMode: data.get("wild_slot_mode"), spellCount: optionalNumber(data, "spell_count"), buildingCount: optionalNumber(data, "building_count"), minAverageElixir: optionalNumber(data, "min_average_elixir"), maxAverageElixir: optionalNumber(data, "max_average_elixir")};
@@ -185,6 +188,28 @@ document.querySelector("[data-generate-again]").addEventListener("click", () => 
 document.querySelector("[data-favorite-current]").addEventListener("click", () => {
     if (!currentEntryId) return;
     toggleFavorite(currentEntryId); updateFavoriteButton(); renderSavedDecks();
+});
+
+function clearFilters() {
+    const filterSection = document.querySelector("[data-card-filters]");
+    filterSection.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
+    filterSection.querySelectorAll('input[type="number"]').forEach(input => { input.value = ""; });
+    updateFilterCount();
+}
+
+document.querySelector("[data-clear-filters]").addEventListener("click", clearFilters);
+
+document.querySelector("[data-reset-settings]").addEventListener("click", () => {
+    form.reset();
+    lockedIds = Array(8).fill(null);
+    activeContext = "available";
+    cardPool.dataset.availableMode = "all";
+    contexts.forEach(updateChips);
+    setContext(activeContext);
+    updateAvailableLabel();
+    updateFilterCount();
+    document.querySelector("[data-error]").hidden = true;
+    if (currentSlots) renderResult(currentSlots, {save: false, scroll: false});
 });
 
 cardPool.addEventListener("click", event => {

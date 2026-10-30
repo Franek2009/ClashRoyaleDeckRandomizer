@@ -28,6 +28,9 @@ const FRIENDLY_ERRORS = {
     constraints_not_feasible: "These settings cannot produce a valid deck. Try relaxing one or more constraints.",
     invalid_locked_cards: "Locked cards must be unique and available for their current slots.",
     invalid_card_filter: "Minimum card Elixir cannot be greater than maximum card Elixir.",
+    filters_too_narrow: "These filters match fewer than 8 cards. Clear or relax one or more filters.",
+    required_filtered_out: "A required card does not match the selected filters.",
+    locked_filtered_out: "A locked card does not match the selected filters.",
 };
 
 export class ConstraintError extends Error {

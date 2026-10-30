@@ -13,3 +13,11 @@ export function filterCards(cards, filters = {}) {
         return true;
     });
 }
+
+export function filteredSelectionIssue(filteredCards, requiredIds = new Set(), lockedIds = []) {
+    const ids = new Set(filteredCards.map(card => card.id));
+    if (ids.size < 8) return "filters_too_narrow";
+    if ([...requiredIds].some(id => !ids.has(id))) return "required_filtered_out";
+    if (lockedIds.some(id => id != null && !ids.has(id))) return "locked_filtered_out";
+    return null;
+}

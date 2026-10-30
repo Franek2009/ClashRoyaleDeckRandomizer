@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {filterCards} from "../static/card-filter.js";
+import {filterCards, filteredSelectionIssue} from "../static/card-filter.js";
 
 const cards = [
     {id: 26000001, rarity: "common", elixirCost: 2, maxEvolutionLevel: 1},
@@ -31,4 +31,12 @@ test("Champions can be excluded independently", () => {
 
 test("Mirror uses cost one in Elixir filters", () => {
     assert.ok(filterCards(cards, {maxElixir: 1}).some(card => card.id === 28000006));
+});
+
+test("filtered selection explains too-small, required, and locked conflicts", () => {
+    assert.equal(filteredSelectionIssue(cards.slice(0, 7)), "filters_too_narrow");
+    const enough = [...cards, ...Array.from({length: 4}, (_, index) => ({id: 27000001 + index}))];
+    assert.equal(filteredSelectionIssue(enough, new Set([999])), "required_filtered_out");
+    assert.equal(filteredSelectionIssue(enough, new Set(), [null, 999]), "locked_filtered_out");
+    assert.equal(filteredSelectionIssue(enough), null);
 });
