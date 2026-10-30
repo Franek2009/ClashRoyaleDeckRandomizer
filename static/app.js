@@ -1,5 +1,6 @@
 import {ActiveForm, ConstraintError, SlotRole, averageElixir, cardType, generateDeck, generateDeckLink, hasEvolution, hasHero} from "./randomizer.js";
 import {clearHistory, readDecks, removeDeck, restoreSlots, saveDeck, toggleFavorite} from "./deck-store.js";
+import {deckInsights, elixirDistribution} from "./deck-analysis.js";
 
 document.documentElement.classList.add("js");
 const form = document.querySelector("[data-generator-form]");
@@ -58,6 +59,46 @@ function constraintsFromForm() {
     return {availableIds: data.get("available_mode") === "all" ? null : checkedIds("available"), bannedIds: checkedIds("banned"), requiredIds: checkedIds("required"), lockedIds, evolutionSlotEnabled: data.get("evolution_slot_enabled") === "on", heroSlotEnabled: data.get("hero_slot_enabled") === "on", wildSlotMode: data.get("wild_slot_mode"), spellCount: optionalNumber(data, "spell_count"), buildingCount: optionalNumber(data, "building_count"), minAverageElixir: optionalNumber(data, "min_average_elixir"), maxAverageElixir: optionalNumber(data, "max_average_elixir")};
 }
 
+function setField(name, value) {
+    const field = form.elements[name];
+    if (!field) return;
+    field.value = value;
+}
+
+function applyPreset(name) {
+    form.reset();
+    lockedIds = Array(8).fill(null);
+    cardPool.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
+    const labels = {
+        random: "Completely Random", cheap: "Cheap Cycle", heavy: "Heavy Deck",
+        "no-champions": "No Champions", evolution: "Evolution-focused",
+        "two-spells": "Two Spells", chaos: "Chaos Mode",
+    };
+    if (name === "cheap") setField("max_average_elixir", "3.0");
+    if (name === "heavy") setField("min_average_elixir", "4.0");
+    if (name === "no-champions") {
+        for (const card of cards.filter(card => card.rarity === "champion")) {
+            const input = cardPool.querySelector(`input[name="banned_ids"][value="${card.id}"]`);
+            if (input) input.checked = true;
+        }
+    }
+    if (name === "evolution") {
+        setField("evolution_slot_enabled", "on"); setField("hero_slot_enabled", "off"); setField("wild_slot_mode", "evolution");
+    }
+    if (name === "two-spells") setField("spell_count", "2");
+    if (name === "chaos") {
+        setField("evolution_slot_enabled", Math.random() < 0.5 ? "on" : "off");
+        setField("hero_slot_enabled", Math.random() < 0.5 ? "on" : "off");
+        setField("wild_slot_mode", ["off", "evolution", "hero_champion"][Math.floor(Math.random() * 3)]);
+        const spells = Math.floor(Math.random() * 4), buildings = Math.floor(Math.random() * 3);
+        setField("spell_count", String(spells)); setField("building_count", String(buildings));
+    }
+    cardPool.dataset.availableMode = "all";
+    contexts.forEach(updateChips); setContext("available"); updateAvailableLabel();
+    document.querySelector("[data-preset-status]").textContent = `${labels[name]} preset applied.`;
+    document.querySelectorAll("[data-preset]").forEach(button => button.classList.toggle("is-active", button.dataset.preset === name));
+}
+
 const summaryItem = (label, value) => `<div><dt>${label}</dt><dd>${value}</dd></div>`;
 function updateFavoriteButton() {
     const button = document.querySelector("[data-favorite-current]");
@@ -73,6 +114,9 @@ function renderResult(slots, {save = true, scroll = true} = {}) {
     document.querySelector("[data-slot-summary]").innerHTML = slots.slice(0, 3).map(slot => summaryItem(roleLabels[slot.role], slot.activeForm === ActiveForm.NORMAL ? "Off" : slot.activeForm.replace("_", " ").replace(/^./, c => c.toUpperCase()))).join("");
     const plainCards = slots.map(slot => slot.card), average = averageElixir(plainCards);
     document.querySelector("[data-deck-summary]").innerHTML = [["Evolutions", slots.filter(slot => slot.activeForm === ActiveForm.EVOLUTION).length], ["Heroes / Champions", slots.filter(slot => [ActiveForm.HERO, ActiveForm.CHAMPION].includes(slot.activeForm)).length], ["Spells", plainCards.filter(card => cardType(card) === "spell").length], ["Buildings", plainCards.filter(card => cardType(card) === "building").length], ["Average Elixir", average == null ? "—" : Number(average.toFixed(3))]].map(([label, value]) => summaryItem(label, value)).join("");
+    const distribution = elixirDistribution(plainCards), maximum = Math.max(1, ...Object.values(distribution));
+    document.querySelector("[data-elixir-chart]").innerHTML = Object.entries(distribution).map(([cost, count]) => `<div class="chart-column"><span class="chart-value">${count}</span><div class="chart-track"><span style="height: ${count / maximum * 100}%"></span></div><span class="chart-label">${cost}</span></div>`).join("");
+    document.querySelector("[data-deck-insights]").innerHTML = deckInsights(plainCards).map(insight => `<li class="is-${insight.kind}">${escapeHtml(insight.text)}</li>`).join("");
     document.querySelector("[data-deck]").innerHTML = slots.map(slot => {
         const image = slot.activeForm === ActiveForm.EVOLUTION ? slot.card.iconUrls.evolutionMedium : slot.activeForm === ActiveForm.HERO ? slot.card.iconUrls.heroMedium : slot.card.iconUrls.medium;
         const index = slots.indexOf(slot), locked = lockedIds[index] === slot.card.id;
@@ -149,6 +193,11 @@ document.querySelector("[data-generate-again]").addEventListener("click", () => 
 document.querySelector("[data-favorite-current]").addEventListener("click", () => {
     if (!currentEntryId) return;
     toggleFavorite(currentEntryId); updateFavoriteButton(); renderSavedDecks();
+});
+
+document.querySelector(".preset-list").addEventListener("click", event => {
+    const button = event.target.closest("[data-preset]");
+    if (button) applyPreset(button.dataset.preset);
 });
 cardPool.addEventListener("click", event => {
     const contextButton = event.target.closest("[data-picker-context]"); if (contextButton) return setContext(contextButton.dataset.pickerContext);

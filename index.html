@@ -14,6 +14,19 @@
             <h1>Clash Royale Deck Randomizer</h1>
             <p>Randomize your deck and start playing!</p>
             <form class="constraints-form" data-generator-form>
+                <section class="preset-panel" aria-labelledby="preset-heading">
+                    <div><h2 id="preset-heading">Quick Presets</h2><p>Apply a starting configuration, then adjust any setting.</p></div>
+                    <div class="preset-list">
+                        <button type="button" data-preset="random">Completely Random</button>
+                        <button type="button" data-preset="cheap">Cheap Cycle</button>
+                        <button type="button" data-preset="heavy">Heavy Deck</button>
+                        <button type="button" data-preset="no-champions">No Champions</button>
+                        <button type="button" data-preset="evolution">Evolution-focused</button>
+                        <button type="button" data-preset="two-spells">Two Spells</button>
+                        <button type="button" data-preset="chaos">Chaos Mode</button>
+                    </div>
+                    <p class="preset-status" data-preset-status aria-live="polite"></p>
+                </section>
                 <div class="constraints-panel">
                     <section class="constraint-group" aria-labelledby="special-slots-heading">
                         <h2 id="special-slots-heading">Special Slots</h2>
@@ -51,6 +64,10 @@
         <section class="deck-section" data-result hidden>
             <h2>Your Deck</h2>
             <div class="result-summary" aria-label="Deck result summary"><section class="summary-group"><h3>Special Slots</h3><dl class="slot-summary" data-slot-summary></dl></section><section class="summary-group"><h3>Deck</h3><dl class="deck-summary" data-deck-summary></dl></section></div>
+            <div class="analysis-panel">
+                <section><h3>Elixir Distribution</h3><div class="elixir-chart" data-elixir-chart></div></section>
+                <section><h3>Deck Insights</h3><ul class="deck-insights" data-deck-insights></ul></section>
+            </div>
             <p class="lock-help">Lock any cards you want to keep, then generate the remaining slots again.</p>
             <div class="deck" data-deck></div>
             <p class="wild-form-notice" data-wild-notice hidden></p>
