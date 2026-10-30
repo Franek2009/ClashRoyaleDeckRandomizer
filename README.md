@@ -20,6 +20,7 @@ The site is deployed automatically from `main` to:
 - Builds a Clash Royale deck link in the displayed slot order.
 - Locks individual slots while regenerating the rest of a deck.
 - Keeps recent and favorite decks in browser-local storage.
+- Exports and imports local deck history as a validated JSON backup.
 - Shows an Elixir distribution chart and objective deck insights.
 - Filters the card pool by rarity, Elixir cost, Evolution, Hero, and Champion status.
 - Runs entirely in the browser without a backend or build step.

@@ -91,8 +91,15 @@
                 <a class="open-game-button" data-deck-link>Open in Clash Royale</a>
             </div>
         </section>
-        <section class="saved-section" data-saved-section hidden>
+        <section class="saved-section" data-saved-section>
             <div class="saved-heading"><div><h2>History &amp; Favorites</h2><p>Your decks are stored only in this browser.</p></div><button type="button" class="text-button" data-clear-history>Clear history</button></div>
+            <div class="data-actions" aria-label="Deck data tools">
+                <button type="button" class="secondary-button" data-export-decks>Export data</button>
+                <button type="button" class="secondary-button" data-import-decks>Import data</button>
+                <button type="button" class="danger-button" data-delete-all-data>Delete all data</button>
+                <input type="file" accept="application/json,.json" data-import-file hidden>
+            </div>
+            <p class="data-status" data-data-status aria-live="polite"></p>
             <div class="saved-tabs" role="group" aria-label="Saved deck filter"><button type="button" class="is-active" data-saved-filter="all" aria-pressed="true">Recent</button><button type="button" data-saved-filter="favorites" aria-pressed="false">Favorites</button></div>
             <p class="saved-empty" data-saved-empty hidden>No decks here yet.</p>
             <div class="saved-decks" data-saved-decks></div>

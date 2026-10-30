@@ -1,5 +1,5 @@
 import {ActiveForm, ConstraintError, SlotRole, averageElixir, cardType, generateDeck, generateDeckLink, hasEvolution, hasHero} from "./randomizer.js";
-import {clearHistory, readDecks, removeDeck, restoreSlots, saveDeck, toggleFavorite} from "./deck-store.js";
+import {clearAllDecks, clearHistory, exportDeckData, importDeckData, readDecks, removeDeck, restoreSlots, saveDeck, toggleFavorite} from "./deck-store.js";
 import {deckInsights, elixirDistribution} from "./deck-analysis.js";
 import {filterCards, filteredSelectionIssue} from "./card-filter.js";
 
@@ -133,8 +133,6 @@ function renderSavedDecks() {
     if (!cards.length) return;
     const allDecks = readDecks();
     const decks = savedFilter === "favorites" ? allDecks.filter(deck => deck.favorite) : allDecks;
-    const section = document.querySelector("[data-saved-section]");
-    section.hidden = allDecks.length === 0;
     document.querySelector("[data-saved-empty]").hidden = decks.length !== 0;
     document.querySelector("[data-saved-decks]").innerHTML = decks.map(deck => {
         const slots = restoreSlots(deck, cards);
@@ -151,6 +149,22 @@ document.querySelector("[data-saved-section]").addEventListener("click", event =
         document.querySelectorAll("[data-saved-filter]").forEach(button => { const active = button === filter; button.classList.toggle("is-active", active); button.setAttribute("aria-pressed", String(active)); });
         renderSavedDecks(); return;
     }
+    if (event.target.closest("[data-export-decks]")) {
+        const blob = new Blob([JSON.stringify(exportDeckData(), null, 2)], {type: "application/json"});
+        const url = URL.createObjectURL(blob), link = document.createElement("a");
+        link.href = url; link.download = `clash-royale-decks-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 0);
+        document.querySelector("[data-data-status]").textContent = "Deck data exported.";
+        return;
+    }
+    if (event.target.closest("[data-import-decks]")) { document.querySelector("[data-import-file]").click(); return; }
+    if (event.target.closest("[data-delete-all-data]")) {
+        if (window.confirm("Delete all history and favorites stored in this browser?")) {
+            clearAllDecks(); currentEntryId = null; renderSavedDecks(); updateFavoriteButton();
+            document.querySelector("[data-data-status]").textContent = "All local deck data deleted.";
+        }
+        return;
+    }
     if (event.target.closest("[data-clear-history]")) { clearHistory(); renderSavedDecks(); updateFavoriteButton(); return; }
     const item = event.target.closest("[data-saved-id]"); if (!item) return;
     const id = item.dataset.savedId;
@@ -162,6 +176,18 @@ document.querySelector("[data-saved-section]").addEventListener("click", event =
     } else if (event.target.closest("[data-remove-saved]")) {
         removeDeck(id); if (currentEntryId === id) currentEntryId = null; updateFavoriteButton(); renderSavedDecks();
     }
+});
+
+document.querySelector("[data-import-file]").addEventListener("change", async event => {
+    const file = event.target.files[0]; if (!file) return;
+    const status = document.querySelector("[data-data-status]");
+    try {
+        const result = importDeckData(await file.text(), new Set(cards.map(card => card.id)));
+        if (result.error) status.textContent = result.error === "invalid_json" ? "The selected file is not valid JSON." : "This is not a supported deck export file.";
+        else status.textContent = `Import complete: ${result.imported} added, ${result.updated} updated, ${result.skipped} skipped.`;
+        renderSavedDecks(); updateFavoriteButton();
+    } catch { status.textContent = "The selected file could not be read."; }
+    event.target.value = "";
 });
 
 form.addEventListener("submit", event => {
