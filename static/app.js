@@ -87,9 +87,9 @@ function applyPreset(name) {
     }
     if (name === "two-spells") setField("spell_count", "2");
     if (name === "chaos") {
-        setField("evolution_slot_enabled", Math.random() < 0.5 ? "on" : "off");
-        setField("hero_slot_enabled", Math.random() < 0.5 ? "on" : "off");
-        setField("wild_slot_mode", ["off", "evolution", "hero_champion"][Math.floor(Math.random() * 3)]);
+        setField("evolution_slot_enabled", "on");
+        setField("hero_slot_enabled", "on");
+        setField("wild_slot_mode", Math.random() < 0.5 ? "evolution" : "hero_champion");
         const spells = Math.floor(Math.random() * 4), buildings = Math.floor(Math.random() * 3);
         setField("spell_count", String(spells)); setField("building_count", String(buildings));
     }
