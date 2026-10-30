@@ -18,6 +18,8 @@ The site is deployed automatically from `main` to:
 - Filters by minimum and maximum average Elixir.
 - Uses the local `cards.json` snapshot; deck generation calls no API.
 - Builds a Clash Royale deck link in the displayed slot order.
+- Locks individual slots while regenerating the rest of a deck.
+- Keeps recent and favorite decks in browser-local storage.
 - Runs entirely in the browser without a backend or build step.
 
 ## Running locally
@@ -62,6 +64,7 @@ ClashRoyaleDeckRandomizer/
 │   └── release.yml
 ├── static/
 │   ├── app.js
+│   ├── deck-store.js
 │   ├── randomizer.js
 │   └── style.css
 ├── tests-js/
@@ -80,6 +83,7 @@ ClashRoyaleDeckRandomizer/
 ```text
 cards.json
     -> static/app.js loads card data and manages the interface
+    -> static/deck-store.js keeps history and favorites in localStorage
     -> static/randomizer.js validates, selects, and arranges the deck
     -> index.html displays the result and Clash Royale link
 ```
@@ -114,5 +118,6 @@ endorsed by Supercell. Use of those materials remains subject to Supercell's
 
 - `cards.json` can become outdated as the game changes.
 - There are no arena, card-level, or player-collection filters.
-- Generated decks are not persisted between page loads.
+- History and favorites belong to one browser and are not synchronized between
+  devices.
 - Card artwork depends on external Supercell asset URLs.

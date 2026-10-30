@@ -26,6 +26,7 @@ const FRIENDLY_ERRORS = {
     not_enough_eligible_cards: "There aren't enough available cards to build an 8-card deck.",
     too_many_required: "A deck can contain at most 8 required cards.",
     constraints_not_feasible: "These settings cannot produce a valid deck. Try relaxing one or more constraints.",
+    invalid_locked_cards: "Locked cards must be unique and available for their current slots.",
 };
 
 export class ConstraintError extends Error {
@@ -74,10 +75,14 @@ export function effectiveForm(card, role, constraints) {
 }
 
 export function createConstraints(values = {}) {
+    const lockedIds = Array.from({length: 8}, (_, index) => values.lockedIds?.[index] ?? null);
+    const requiredIds = new Set(values.requiredIds ?? []);
+    for (const id of lockedIds) if (id != null) requiredIds.add(id);
     return {
         availableIds: values.availableIds ?? null,
         bannedIds: values.bannedIds ?? new Set(),
-        requiredIds: values.requiredIds ?? new Set(),
+        requiredIds,
+        lockedIds,
         evolutionSlotEnabled: values.evolutionSlotEnabled ?? true,
         heroSlotEnabled: values.heroSlotEnabled ?? true,
         wildSlotMode: values.wildSlotMode ?? WildSlotMode.EVOLUTION,
@@ -109,6 +114,9 @@ function bounds(constraints) {
 function validateConstraints(cards, constraints) {
     const byId = new Map(cards.map(card => [card.id, card]));
     const catalogIds = new Set(byId.keys());
+    const locked = constraints.lockedIds.filter(id => id != null);
+    if (new Set(locked).size !== locked.length)
+        throw new ConstraintError("locked cards must be unique", "invalid_locked_cards");
     if (constraints.requiredIds.size > 8) throw new ConstraintError("too many required cards", "too_many_required");
     for (const ids of [constraints.requiredIds, constraints.bannedIds, ...(constraints.availableIds ? [constraints.availableIds] : [])])
         if ([...ids].some(id => !catalogIds.has(id))) throw new ConstraintError("unknown card", "unknown_card_selection");
@@ -116,6 +124,13 @@ function validateConstraints(cards, constraints) {
         throw new ConstraintError("required card is banned", "required_banned_conflict");
     if (constraints.availableIds && difference(constraints.requiredIds, constraints.availableIds).size)
         throw new ConstraintError("required card is unavailable", "required_not_available");
+    for (let index = 0; index < constraints.lockedIds.length; index++) {
+        const id = constraints.lockedIds[index];
+        if (id == null || !byId.has(id)) continue;
+        const role = index < ROLES.length ? ROLES[index] : SlotRole.NORMAL;
+        if (!allowedForSlot(byId.get(id), role, constraints))
+            throw new ConstraintError("locked card is unsafe for its slot", "invalid_locked_cards");
+    }
 
     const eligibleIds = new Set(constraints.availableIds || catalogIds);
     for (const id of constraints.bannedIds) eligibleIds.delete(id);
@@ -227,11 +242,25 @@ function completeDeck(eligible, slots, constraints, target = null) {
             : shuffle(candidates).slice(0, neededCount);
     }
     if (!fillers || fillers.length !== neededCount) return null;
-    return [...slots, ...shuffle([...required, ...fillers])];
+    const normalCards = shuffle([...required, ...fillers]);
+    const orderedNormal = Array(5).fill(null);
+    for (let index = 3; index < 8; index++) {
+        const lockedId = constraints.lockedIds[index];
+        if (lockedId == null) continue;
+        const cardIndex = normalCards.findIndex(card => card.id === lockedId);
+        if (cardIndex < 0) return null;
+        orderedNormal[index - 3] = normalCards.splice(cardIndex, 1)[0];
+    }
+    for (let index = 0; index < orderedNormal.length; index++)
+        if (!orderedNormal[index]) orderedNormal[index] = normalCards.shift();
+    return [...slots, ...orderedNormal];
 }
 
 function resolveDeck(eligible, constraints) {
-    const candidates = Object.fromEntries(ROLES.map(role => [role, shuffle(eligible.filter(card => allowedForSlot(card, role, constraints)))]));
+    const candidates = Object.fromEntries(ROLES.map((role, index) => [role, shuffle(eligible.filter(card =>
+        allowedForSlot(card, role, constraints) &&
+        (constraints.lockedIds[index] == null || card.id === constraints.lockedIds[index])
+    ))]));
     const chooseSlots = (target, index = 0, selected = []) => {
         if (index === ROLES.length) return completeDeck(eligible, selected, constraints, target);
         const used = new Set(selected.map(card => card.id));

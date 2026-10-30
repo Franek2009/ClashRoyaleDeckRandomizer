@@ -59,3 +59,19 @@ test("deck link preserves all slot IDs in order", () => {
     const ids = slots.map(slot => slot.card.id).join(";");
     assert.equal(generateDeckLink(slots), `https://link.clashroyale.com/en/?clashroyale://copyDeck?deck=${ids}&l=Royals&tt=159000000`);
 });
+
+test("locked cards stay in their exact slots when the rest is generated again", () => {
+    const first = generateDeck(cards);
+    const lockedIds = [first[0].card.id, null, null, null, first[4].card.id, null, null, first[7].card.id];
+    for (let index = 0; index < 30; index++) {
+        const next = generateDeck(cards, {lockedIds});
+        assert.equal(next[0].card.id, lockedIds[0]);
+        assert.equal(next[4].card.id, lockedIds[4]);
+        assert.equal(next[7].card.id, lockedIds[7]);
+    }
+});
+
+test("a card cannot be locked into an unsafe special slot", () => {
+    const normal = cards.find(card => !hasEvolution(card) && !hasHero(card) && !isChampion(card));
+    assert.throws(() => generateDeck(cards, {lockedIds: [normal.id]}), error => error instanceof ConstraintError && error.code === "invalid_locked_cards");
+});

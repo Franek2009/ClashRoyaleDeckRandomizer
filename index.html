@@ -48,7 +48,24 @@
             </form>
             <p class="error-message" role="alert" data-error hidden></p>
         </header>
-        <section class="deck-section" data-result hidden><h2>Your Deck</h2><div class="result-summary" aria-label="Deck result summary"><section class="summary-group"><h3>Special Slots</h3><dl class="slot-summary" data-slot-summary></dl></section><section class="summary-group"><h3>Deck</h3><dl class="deck-summary" data-deck-summary></dl></section></div><div class="deck" data-deck></div><p class="wild-form-notice" data-wild-notice hidden></p><a class="open-game-button" data-deck-link>Open in Clash Royale</a></section>
+        <section class="deck-section" data-result hidden>
+            <h2>Your Deck</h2>
+            <div class="result-summary" aria-label="Deck result summary"><section class="summary-group"><h3>Special Slots</h3><dl class="slot-summary" data-slot-summary></dl></section><section class="summary-group"><h3>Deck</h3><dl class="deck-summary" data-deck-summary></dl></section></div>
+            <p class="lock-help">Lock any cards you want to keep, then generate the remaining slots again.</p>
+            <div class="deck" data-deck></div>
+            <p class="wild-form-notice" data-wild-notice hidden></p>
+            <div class="result-actions">
+                <button type="button" class="secondary-button" data-generate-again>Generate again</button>
+                <button type="button" class="secondary-button" data-favorite-current aria-pressed="false">☆ Add to favorites</button>
+                <a class="open-game-button" data-deck-link>Open in Clash Royale</a>
+            </div>
+        </section>
+        <section class="saved-section" data-saved-section hidden>
+            <div class="saved-heading"><div><h2>History &amp; Favorites</h2><p>Your decks are stored only in this browser.</p></div><button type="button" class="text-button" data-clear-history>Clear history</button></div>
+            <div class="saved-tabs" role="group" aria-label="Saved deck filter"><button type="button" class="is-active" data-saved-filter="all" aria-pressed="true">Recent</button><button type="button" data-saved-filter="favorites" aria-pressed="false">Favorites</button></div>
+            <p class="saved-empty" data-saved-empty hidden>No decks here yet.</p>
+            <div class="saved-decks" data-saved-decks></div>
+        </section>
     </main>
     <footer class="footer"><p>This is an unofficial fan-made project and is not affiliated with, sponsored by, or endorsed by Supercell.</p></footer>
 </body>
