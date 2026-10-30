@@ -10,6 +10,18 @@ permissions:
   contents: read
 
 jobs:
+  static-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Test static application
+        run: npm test
+
   test:
     runs-on: ubuntu-latest
     strategy:

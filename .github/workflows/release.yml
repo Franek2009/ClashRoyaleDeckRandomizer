@@ -27,6 +27,14 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Test static application
+        run: npm test
+
       - name: Run production smoke test
         run: |
           gunicorn --bind 127.0.0.1:8000 app:app &

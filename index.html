@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Generate a random Clash Royale deck with configurable slots, card pools, composition, and elixir cost.">
+    <title>Clash Royale Deck Randomizer</title>
+    <link rel="stylesheet" href="./static/style.css">
+    <script type="module" src="./static/app.js"></script>
+</head>
+<body>
+    <main class="container">
+        <header class="header">
+            <h1>Clash Royale Deck Randomizer</h1>
+            <p>Randomize your deck and start playing!</p>
+            <form class="constraints-form" data-generator-form>
+                <div class="constraints-panel">
+                    <section class="constraint-group" aria-labelledby="special-slots-heading">
+                        <h2 id="special-slots-heading">Special Slots</h2>
+                        <p class="constraint-help">Choose what each special deck slot should activate.</p>
+                        <div class="slot-controls">
+                            <fieldset class="slot-control"><legend>Evolution Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="evolution_slot_enabled" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="evolution_slot_enabled" value="on" checked><span>Evolution</span></label></div></fieldset>
+                            <fieldset class="slot-control"><legend>Hero Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="hero_slot_enabled" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="hero_slot_enabled" value="on" checked><span>Hero / Champion</span></label></div></fieldset>
+                            <fieldset class="slot-control"><legend>Wild Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="wild_slot_mode" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="wild_slot_mode" value="evolution" checked><span>Evolution</span></label><label class="segment-option"><input type="radio" name="wild_slot_mode" value="hero_champion"><span>Hero / Champion</span></label></div></fieldset>
+                        </div>
+                        <p class="constraint-help">Wild Slot can activate either an Evolution or a Hero / Champion.</p>
+                    </section>
+                    <section class="constraint-group card-pool" aria-labelledby="card-pool-heading" data-card-pool data-context="available" data-available-mode="all">
+                        <h2 id="card-pool-heading">Card Pool</h2><p class="constraint-help">Choose which cards may, may not, or must appear in the deck.</p>
+                        <fieldset class="available-mode"><legend>Available cards</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="available_mode" value="all" checked><span>All cards</span></label><label class="segment-option"><input type="radio" name="available_mode" value="custom"><span>Custom selection</span></label></div></fieldset>
+                        <div class="picker-contexts" role="group" aria-label="Card selection list"><button type="button" class="picker-context is-active" data-picker-context="available" aria-pressed="true">Available (<span data-available-label>All</span>)</button><button type="button" class="picker-context" data-picker-context="banned" aria-pressed="false">Banned (<span data-selected-count="banned">0</span>)</button><button type="button" class="picker-context" data-picker-context="required" aria-pressed="false">Required (<span data-selected-count="required">0</span>)</button></div>
+                        <p class="picker-context-help" data-picker-context-help>Cards the randomizer may use.</p><p class="available-all-message" data-available-all-message>All cards are available. Switch to Custom selection to edit this pool.</p>
+                        <div class="picker-workspace" data-picker-workspace>
+                            <div class="available-actions" data-available-actions><button type="button" data-select-all-available>Select all</button><button type="button" data-clear-available>Clear</button></div>
+                            <div class="picker-search-field"><label for="card-search">Search cards</label><input id="card-search" type="search" placeholder="e.g. Wizard" autocomplete="off" data-card-search></div>
+                            <div class="selected-card-groups">
+                                <div class="selected-cards is-active" data-selected-pool="available"><p><strong>Available</strong> (<span data-selected-count="available">0</span>)</p><div class="selected-chips" data-selected-chips="available"></div></div>
+                                <div class="selected-cards" data-selected-pool="banned"><p><strong>Banned</strong> (<span data-selected-count="banned">0</span>)</p><div class="selected-chips" data-selected-chips="banned"></div></div>
+                                <div class="selected-cards" data-selected-pool="required"><p><strong>Required</strong> (<span data-selected-count="required">0</span>)</p><div class="selected-chips" data-selected-chips="required"></div></div>
+                            </div>
+                            <div class="card-picker-grid" data-card-picker aria-live="polite"></div>
+                        </div>
+                    </section>
+                    <section class="constraint-group" aria-labelledby="deck-composition-heading"><h2 id="deck-composition-heading">Deck Composition</h2><div class="constraint-grid-two"><div class="constraint-field"><label for="spell_count">Spells</label><select id="spell_count" name="spell_count" data-count-select><option value="any">Any</option></select></div><div class="constraint-field"><label for="building_count">Buildings</label><select id="building_count" name="building_count" data-count-select><option value="any">Any</option></select></div></div><p class="constraint-help">Exact number in the 8-card deck.</p></section>
+                    <section class="constraint-group" aria-labelledby="average-elixir-heading"><h2 id="average-elixir-heading">Average Elixir</h2><div class="constraint-grid-two"><div class="constraint-field"><label for="min_average_elixir">Deck average elixir — minimum</label><input id="min_average_elixir" name="min_average_elixir" type="number" min="0.1" step="0.1"></div><div class="constraint-field"><label for="max_average_elixir">Deck average elixir — maximum</label><input id="max_average_elixir" name="max_average_elixir" type="number" min="0.1" step="0.1"></div></div><p class="constraint-help">Limits the average cost of the entire 8-card deck, not individual card costs.</p></section>
+                </div>
+                <button type="submit" class="generate-button">Generate Deck</button>
+            </form>
+            <p class="error-message" role="alert" data-error hidden></p>
+        </header>
+        <section class="deck-section" data-result hidden><h2>Your Deck</h2><div class="result-summary" aria-label="Deck result summary"><section class="summary-group"><h3>Special Slots</h3><dl class="slot-summary" data-slot-summary></dl></section><section class="summary-group"><h3>Deck</h3><dl class="deck-summary" data-deck-summary></dl></section></div><div class="deck" data-deck></div><p class="wild-form-notice" data-wild-notice hidden></p><a class="open-game-button" data-deck-link>Open in Clash Royale</a></section>
+    </main>
+    <footer class="footer"><p>This is an unofficial fan-made project and is not affiliated with, sponsored by, or endorsed by Supercell.</p></footer>
+</body>
+</html>
