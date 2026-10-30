@@ -1,6 +1,7 @@
 import {ActiveForm, ConstraintError, SlotRole, averageElixir, cardType, generateDeck, generateDeckLink, hasEvolution, hasHero} from "./randomizer.js";
 import {clearHistory, readDecks, removeDeck, restoreSlots, saveDeck, toggleFavorite} from "./deck-store.js";
 import {deckInsights, elixirDistribution} from "./deck-analysis.js";
+import {filterCards} from "./card-filter.js";
 
 document.documentElement.classList.add("js");
 const form = document.querySelector("[data-generator-form]");
@@ -54,9 +55,40 @@ function setContext(context) {
 }
 
 function optionalNumber(data, name) { const value = data.get(name); return value === "" || value === "any" ? null : Number(value); }
+function filtersFromForm(data = new FormData(form)) {
+    return {
+        rarities: new Set(data.getAll("filter_rarity")),
+        minElixir: optionalNumber(data, "filter_min_elixir"),
+        maxElixir: optionalNumber(data, "filter_max_elixir"),
+        evolutionOnly: data.has("filter_evolution_only"),
+        heroOnly: data.has("filter_hero_only"),
+        excludeChampions: data.has("filter_exclude_champions"),
+    };
+}
+
+function filtersAreActive(filters) {
+    return filters.rarities.size > 0 || filters.minElixir != null || filters.maxElixir != null ||
+        filters.evolutionOnly || filters.heroOnly || filters.excludeChampions;
+}
+
+function updateFilterCount() {
+    if (!cards.length) return;
+    const filters = filtersFromForm();
+    const count = filterCards(cards, filters).length;
+    document.querySelector("[data-filter-count]").textContent = filtersAreActive(filters) ? count : "All";
+}
+
 function constraintsFromForm() {
     const data = new FormData(form);
-    return {availableIds: data.get("available_mode") === "all" ? null : checkedIds("available"), bannedIds: checkedIds("banned"), requiredIds: checkedIds("required"), lockedIds, evolutionSlotEnabled: data.get("evolution_slot_enabled") === "on", heroSlotEnabled: data.get("hero_slot_enabled") === "on", wildSlotMode: data.get("wild_slot_mode"), spellCount: optionalNumber(data, "spell_count"), buildingCount: optionalNumber(data, "building_count"), minAverageElixir: optionalNumber(data, "min_average_elixir"), maxAverageElixir: optionalNumber(data, "max_average_elixir")};
+    const filters = filtersFromForm(data);
+    if (filters.minElixir != null && filters.maxElixir != null && filters.minElixir > filters.maxElixir)
+        throw new ConstraintError("minimum card cost exceeds maximum", "invalid_card_filter");
+    let availableIds = data.get("available_mode") === "all" ? null : checkedIds("available");
+    if (filtersAreActive(filters)) {
+        const filteredIds = new Set(filterCards(cards, filters).map(card => card.id));
+        availableIds = availableIds == null ? filteredIds : new Set([...availableIds].filter(id => filteredIds.has(id)));
+    }
+    return {availableIds, bannedIds: checkedIds("banned"), requiredIds: checkedIds("required"), lockedIds, evolutionSlotEnabled: data.get("evolution_slot_enabled") === "on", heroSlotEnabled: data.get("hero_slot_enabled") === "on", wildSlotMode: data.get("wild_slot_mode"), spellCount: optionalNumber(data, "spell_count"), buildingCount: optionalNumber(data, "building_count"), minAverageElixir: optionalNumber(data, "min_average_elixir"), maxAverageElixir: optionalNumber(data, "max_average_elixir")};
 }
 
 const summaryItem = (label, value) => `<div><dt>${label}</dt><dd>${value}</dd></div>`;
@@ -169,10 +201,11 @@ cardPool.querySelector("[data-card-search]").addEventListener("input", event => 
 cardPool.querySelector("[data-select-all-available]").addEventListener("click", () => { cardPool.querySelectorAll('input[name="available_ids"]').forEach(input => { input.checked = true; }); updateChips("available"); setContext("available"); });
 cardPool.querySelector("[data-clear-available]").addEventListener("click", () => { cardPool.querySelectorAll('input[name="available_ids"]').forEach(input => { input.checked = false; }); updateChips("available"); setContext("available"); });
 document.querySelectorAll("[data-count-select]").forEach(select => { for (let value = 0; value <= 8; value++) select.add(new Option(value, value)); });
+document.querySelector("[data-card-filters]").addEventListener("input", updateFilterCount);
 
 try {
     const response = await fetch("./cards.json"); if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    cards = (await response.json()).items; renderPicker(); contexts.forEach(updateChips); renderSavedDecks();
+    cards = (await response.json()).items; renderPicker(); contexts.forEach(updateChips); renderSavedDecks(); updateFilterCount();
 } catch (error) {
     const message = document.querySelector("[data-error]"); message.textContent = "Card data could not be loaded. Please refresh the page."; message.hidden = false; form.querySelector('button[type="submit"]').disabled = true;
 }

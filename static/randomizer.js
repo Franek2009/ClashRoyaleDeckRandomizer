@@ -27,6 +27,7 @@ const FRIENDLY_ERRORS = {
     too_many_required: "A deck can contain at most 8 required cards.",
     constraints_not_feasible: "These settings cannot produce a valid deck. Try relaxing one or more constraints.",
     invalid_locked_cards: "Locked cards must be unique and available for their current slots.",
+    invalid_card_filter: "Minimum card Elixir cannot be greater than maximum card Elixir.",
 };
 
 export class ConstraintError extends Error {

@@ -180,6 +180,72 @@ body {
     line-height: 1.5;
 }
 
+.filter-fieldset {
+    margin: 16px 0;
+    padding: 0;
+    border: 0;
+}
+
+.filter-fieldset legend {
+    margin-bottom: 9px;
+    color: #e5e7eb;
+    font-weight: 600;
+}
+
+.filter-fieldset legend span {
+    color: #9ca3af;
+    font-size: 0.8rem;
+    font-weight: normal;
+}
+
+.filter-options,
+.filter-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-options label,
+.filter-toggles label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 11px;
+    border: 1px solid #4b5563;
+    border-radius: 9px;
+    color: #d1d5db;
+    background: #1f2937;
+    cursor: pointer;
+}
+
+.filter-options label:has(input:checked),
+.filter-toggles label:has(input:checked) {
+    border-color: #a78bfa;
+    color: #ede9fe;
+    background: #4c1d95;
+}
+
+.filter-options input,
+.filter-toggles input {
+    width: 17px;
+    height: 17px;
+    accent-color: #8b5cf6;
+}
+
+.filter-costs {
+    margin: 16px 0;
+}
+
+.filter-result {
+    margin: 14px 0 0;
+    color: #b6c1d1;
+    font-size: 0.86rem;
+}
+
+.filter-result strong {
+    color: #c4b5fd;
+}
+
 .constraint-grid-two + .constraint-help,
 .slot-controls + .constraint-help {
     margin-top: 12px;

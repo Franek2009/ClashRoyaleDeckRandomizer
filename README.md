@@ -21,6 +21,7 @@ The site is deployed automatically from `main` to:
 - Locks individual slots while regenerating the rest of a deck.
 - Keeps recent and favorite decks in browser-local storage.
 - Shows an Elixir distribution chart and objective deck insights.
+- Filters the card pool by rarity, Elixir cost, Evolution, Hero, and Champion status.
 - Runs entirely in the browser without a backend or build step.
 
 ## Running locally
@@ -65,6 +66,7 @@ ClashRoyaleDeckRandomizer/
 │   └── release.yml
 ├── static/
 │   ├── app.js
+│   ├── card-filter.js
 │   ├── deck-analysis.js
 │   ├── deck-store.js
 │   ├── randomizer.js

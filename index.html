@@ -41,6 +41,30 @@
                             <div class="card-picker-grid" data-card-picker aria-live="polite"></div>
                         </div>
                     </section>
+                    <section class="constraint-group" aria-labelledby="card-filters-heading" data-card-filters>
+                        <h2 id="card-filters-heading">Card Filters</h2>
+                        <p class="constraint-help">Narrow the available card pool. Selected filters work together.</p>
+                        <fieldset class="filter-fieldset">
+                            <legend>Rarity <span>(leave empty for all)</span></legend>
+                            <div class="filter-options">
+                                <label><input type="checkbox" name="filter_rarity" value="common"> Common</label>
+                                <label><input type="checkbox" name="filter_rarity" value="rare"> Rare</label>
+                                <label><input type="checkbox" name="filter_rarity" value="epic"> Epic</label>
+                                <label><input type="checkbox" name="filter_rarity" value="legendary"> Legendary</label>
+                                <label><input type="checkbox" name="filter_rarity" value="champion"> Champion</label>
+                            </div>
+                        </fieldset>
+                        <div class="constraint-grid-two filter-costs">
+                            <div class="constraint-field"><label for="filter_min_elixir">Minimum Elixir</label><input id="filter_min_elixir" name="filter_min_elixir" type="number" min="1" max="10" step="1"></div>
+                            <div class="constraint-field"><label for="filter_max_elixir">Maximum Elixir</label><input id="filter_max_elixir" name="filter_max_elixir" type="number" min="1" max="10" step="1"></div>
+                        </div>
+                        <div class="filter-toggles">
+                            <label><input type="checkbox" name="filter_evolution_only"> Evolution cards only</label>
+                            <label><input type="checkbox" name="filter_hero_only"> Hero cards only</label>
+                            <label><input type="checkbox" name="filter_exclude_champions"> Exclude Champions</label>
+                        </div>
+                        <p class="filter-result"><strong data-filter-count>All</strong> cards match these filters.</p>
+                    </section>
                     <section class="constraint-group" aria-labelledby="deck-composition-heading"><h2 id="deck-composition-heading">Deck Composition</h2><div class="constraint-grid-two"><div class="constraint-field"><label for="spell_count">Spells</label><select id="spell_count" name="spell_count" data-count-select><option value="any">Any</option></select></div><div class="constraint-field"><label for="building_count">Buildings</label><select id="building_count" name="building_count" data-count-select><option value="any">Any</option></select></div></div><p class="constraint-help">Exact number in the 8-card deck.</p></section>
                     <section class="constraint-group" aria-labelledby="average-elixir-heading"><h2 id="average-elixir-heading">Average Elixir</h2><div class="constraint-grid-two"><div class="constraint-field"><label for="min_average_elixir">Deck average elixir — minimum</label><input id="min_average_elixir" name="min_average_elixir" type="number" min="0.1" step="0.1"></div><div class="constraint-field"><label for="max_average_elixir">Deck average elixir — maximum</label><input id="max_average_elixir" name="max_average_elixir" type="number" min="0.1" step="0.1"></div></div><p class="constraint-help">Limits the average cost of the entire 8-card deck, not individual card costs.</p></section>
                 </div>
