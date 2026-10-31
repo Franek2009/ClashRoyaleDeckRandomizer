@@ -106,6 +106,11 @@ All asset paths are relative, so the application works below the
 
 ## Browser interface
 
+UI copy is functional: keep the header to the app name and navigation. Do not
+add slogans, hero descriptions, promotional claims, feature showcases, or
+redundant helper text. Explain mechanics only when needed; preserve errors,
+accessibility labels, and the fan-content notice.
+
 The arena interface uses an original background and emblem, locally hosted Barlow
 fonts, and CSS/SVG controls. It preserves the existing generator and local deck
 storage format. The retained Flask template continues to use `static/style.css`;

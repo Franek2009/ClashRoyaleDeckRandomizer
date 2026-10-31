@@ -8,7 +8,6 @@ const form = document.querySelector("[data-generator-form]");
 const cardPool = document.querySelector("[data-card-pool]");
 const picker = document.querySelector("[data-card-picker]");
 const contexts = ["available", "banned", "required"];
-const descriptions = {available: "Cards the randomizer may use.", banned: "Cards that must not appear.", required: "Cards that must appear."};
 let activeContext = "all";
 let pickerPage = 1;
 const PAGE_SIZE = 12;
@@ -91,7 +90,6 @@ function setContext(context) {
         card.classList.toggle("is-selected", selected);
         card.querySelector(".selection-mark").hidden = !selected;
     });
-    cardPool.querySelector("[data-picker-context-help]").textContent = descriptions[context] || "Browse the full card catalog.";
     updatePickerPage();
 }
 
@@ -151,7 +149,6 @@ function renderResult(slots, {save = true, scroll = true} = {}) {
     document.querySelector("[data-slot-summary]").innerHTML = slots.slice(0, 3).map(slot => summaryItem(roleLabels[slot.role], slot.activeForm === ActiveForm.NORMAL ? "Off" : slot.activeForm.replace("_", " ").replace(/^./, c => c.toUpperCase()))).join("");
     const plainCards = slots.map(slot => slot.card), average = averageElixir(plainCards);
     document.querySelector("[data-average]").textContent = average == null ? "—" : Number(average.toFixed(3));
-    document.querySelector("[data-deck-empty]").hidden = true;
     document.querySelectorAll("[data-has-deck]").forEach(node => { node.hidden = false; });
     document.querySelector("[data-analysis]").hidden = false;
     document.querySelector("[data-deck-summary]").innerHTML = [["Evolutions", slots.filter(slot => slot.activeForm === ActiveForm.EVOLUTION).length], ["Heroes / Champions", slots.filter(slot => [ActiveForm.HERO, ActiveForm.CHAMPION].includes(slot.activeForm)).length], ["Spells", plainCards.filter(card => cardType(card) === "spell").length], ["Buildings", plainCards.filter(card => cardType(card) === "building").length], ["Average Elixir", average == null ? "—" : Number(average.toFixed(3))]].map(([label, value]) => summaryItem(label, value)).join("");
