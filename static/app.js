@@ -9,7 +9,9 @@ const cardPool = document.querySelector("[data-card-pool]");
 const picker = document.querySelector("[data-card-picker]");
 const contexts = ["available", "banned", "required"];
 const descriptions = {available: "Cards the randomizer may use.", banned: "Cards that must not appear.", required: "Cards that must appear."};
-let activeContext = "available";
+let activeContext = "all";
+let pickerPage = 1;
+const PAGE_SIZE = 12;
 let cards = [];
 let currentSlots = null;
 let currentEntryId = null;
@@ -19,9 +21,35 @@ let savedFilter = "all";
 const escapeHtml = value => String(value).replace(/[&<>"]/g, char => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[char]);
 const checkedIds = context => new Set([...cardPool.querySelectorAll(`input[name="${context}_ids"]:checked`)].map(input => Number(input.value)));
 
+const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
+const elixirBadge = card => `<span class="elixir-badge" aria-label="${card.elixirCost ?? 'Unknown'} Elixir">${card.elixirCost ?? '–'}</span>`;
+
 function renderPicker() {
-    picker.innerHTML = cards.map(card => `<article class="picker-card" data-picker-card data-card-name="${escapeHtml(card.name.toLocaleLowerCase())}" data-card-id="${card.id}"><img src="${escapeHtml(card.iconUrls.medium)}" alt="" loading="lazy"><div class="picker-card-copy"><h3>${escapeHtml(card.name)}</h3><span>Elixir: ${card.elixirCost ?? "—"}</span></div><div class="picker-card-controls">${contexts.map(context => `<label class="picker-card-control" data-pool-control="${context}"><input type="checkbox" name="${context}_ids" value="${card.id}" aria-label="${context}: ${escapeHtml(card.name)}"><span>${context[0].toUpperCase() + context.slice(1)}</span></label>`).join("")}</div></article>`).join("");
+    picker.innerHTML = cards.map(card => `<article class="picker-card" data-picker-card data-card-name="${escapeHtml(card.name.toLocaleLowerCase())}" data-card-id="${card.id}"><div class="picker-art">${elixirBadge(card)}<img src="${escapeHtml(card.iconUrls.medium)}" alt="" loading="lazy"><span class="selection-mark" hidden>✓</span></div><h3>${escapeHtml(card.name)}</h3>${contexts.map(context => `<label class="picker-card-control" data-pool-control="${context}" hidden><input type="checkbox" name="${context}_ids" value="${card.id}" aria-label="${context}: ${escapeHtml(card.name)}"><span class="visually-hidden">${context}: ${escapeHtml(card.name)}</span></label>`).join("")}</article>`).join("");
+    document.querySelector("[data-catalog-count]").textContent = cards.length;
     setContext(activeContext);
+}
+
+function updatePickerPage() {
+    const query = cardPool.querySelector("[data-card-search]").value.trim().toLocaleLowerCase();
+    const nodes = [...picker.querySelectorAll("[data-picker-card]")];
+    const matches = nodes.filter(card => card.dataset.cardName.includes(query));
+    const totalPages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+    pickerPage = Math.max(1, Math.min(pickerPage, totalPages));
+    nodes.forEach(card => { card.hidden = true; });
+    matches.slice((pickerPage - 1) * PAGE_SIZE, pickerPage * PAGE_SIZE).forEach(card => { card.hidden = false; });
+    document.querySelector("[data-pool-empty]").hidden = matches.length !== 0;
+    picker.hidden = matches.length === 0;
+    const start = matches.length ? (pickerPage - 1) * PAGE_SIZE + 1 : 0;
+    document.querySelector("[data-pool-status]").textContent = `${start}–${Math.min(pickerPage * PAGE_SIZE, matches.length)} of ${matches.length} cards${query ? ' · search results' : ''}`;
+    const pages = [...new Set([1, pickerPage - 1, pickerPage, pickerPage + 1, totalPages])].filter(page => page > 0 && page <= totalPages).sort((a,b) => a-b);
+    let previous = 0;
+    const buttons = pages.map(page => {
+        const gap = page - previous > 1 ? '<span class="page-gap" aria-hidden="true">…</span>' : '';
+        previous = page;
+        return `${gap}<button type="button" data-page="${page}" aria-label="Page ${page}" ${page === pickerPage ? 'aria-current="page" class="is-active"' : ''}>${page}</button>`;
+    }).join('');
+    document.querySelector("[data-pagination]").innerHTML = `<button type="button" data-page="${pickerPage - 1}" aria-label="Previous page" ${pickerPage === 1 ? 'disabled' : ''}>‹</button>${buttons}<button type="button" data-page="${pickerPage + 1}" aria-label="Next page" ${pickerPage === totalPages ? 'disabled' : ''}>›</button>`;
 }
 
 function updateChips(context) {
@@ -42,16 +70,29 @@ function updateChips(context) {
 
 function updateAvailableLabel() {
     const count = cardPool.querySelectorAll('input[name="available_ids"]:checked').length;
-    cardPool.querySelector("[data-available-label]").textContent = cardPool.dataset.availableMode === "all" ? "All" : count;
+    cardPool.querySelector("[data-available-label]").textContent = cardPool.dataset.availableMode === "all" ? cards.length : count;
 }
 
 function setContext(context) {
     activeContext = context; cardPool.dataset.context = context;
     cardPool.querySelectorAll("[data-picker-context]").forEach(button => { const active = button.dataset.pickerContext === context; button.classList.toggle("is-active", active); button.setAttribute("aria-pressed", String(active)); });
-    cardPool.querySelectorAll("[data-selected-pool]").forEach(group => group.classList.toggle("is-active", group.dataset.selectedPool === context));
-    cardPool.querySelectorAll("[data-pool-control]").forEach(control => control.classList.toggle("is-active", control.dataset.poolControl === context));
-    cardPool.querySelectorAll("[data-picker-card]").forEach(card => card.classList.toggle("is-selected", card.querySelector(`input[name="${context}_ids"]`).checked));
-    cardPool.querySelector("[data-picker-context-help]").textContent = descriptions[context];
+    cardPool.querySelector("[data-pool-editing]").hidden = context === "all";
+    cardPool.querySelectorAll("[data-selected-pool]").forEach(group => { group.hidden = group.dataset.selectedPool !== context; });
+    const available = context === "available", allAvailable = cardPool.dataset.availableMode === "all";
+    cardPool.querySelector(".available-mode").hidden = !available;
+    cardPool.querySelector("[data-available-all-message]").hidden = !available || !allAvailable;
+    cardPool.querySelector("[data-available-actions]").hidden = !available || allAvailable;
+    cardPool.querySelectorAll("[data-pool-control]").forEach(control => {
+        control.hidden = control.dataset.poolControl !== context;
+        control.querySelector("input").disabled = available && allAvailable;
+    });
+    cardPool.querySelectorAll("[data-picker-card]").forEach(card => {
+        const selected = context !== "all" && ((available && allAvailable) || card.querySelector(`input[name="${context}_ids"]`).checked);
+        card.classList.toggle("is-selected", selected);
+        card.querySelector(".selection-mark").hidden = !selected;
+    });
+    cardPool.querySelector("[data-picker-context-help]").textContent = descriptions[context] || "Browse the full card catalog.";
+    updatePickerPage();
 }
 
 function optionalNumber(data, name) { const value = data.get(name); return value === "" || value === "any" ? null : Number(value); }
@@ -76,6 +117,7 @@ function updateFilterCount() {
     const filters = filtersFromForm();
     const count = filterCards(cards, filters).length;
     document.querySelector("[data-filter-count]").textContent = filtersAreActive(filters) ? count : "All";
+    document.querySelector("[data-filter-dot]").hidden = !filtersAreActive(filters);
 }
 
 function constraintsFromForm() {
@@ -108,6 +150,10 @@ function renderResult(slots, {save = true, scroll = true} = {}) {
     const roleLabels = {[SlotRole.EVOLUTION]: "Evolution", [SlotRole.HERO]: "Hero", [SlotRole.WILD]: "Wild"};
     document.querySelector("[data-slot-summary]").innerHTML = slots.slice(0, 3).map(slot => summaryItem(roleLabels[slot.role], slot.activeForm === ActiveForm.NORMAL ? "Off" : slot.activeForm.replace("_", " ").replace(/^./, c => c.toUpperCase()))).join("");
     const plainCards = slots.map(slot => slot.card), average = averageElixir(plainCards);
+    document.querySelector("[data-average]").textContent = average == null ? "—" : Number(average.toFixed(3));
+    document.querySelector("[data-deck-empty]").hidden = true;
+    document.querySelectorAll("[data-has-deck]").forEach(node => { node.hidden = false; });
+    document.querySelector("[data-analysis]").hidden = false;
     document.querySelector("[data-deck-summary]").innerHTML = [["Evolutions", slots.filter(slot => slot.activeForm === ActiveForm.EVOLUTION).length], ["Heroes / Champions", slots.filter(slot => [ActiveForm.HERO, ActiveForm.CHAMPION].includes(slot.activeForm)).length], ["Spells", plainCards.filter(card => cardType(card) === "spell").length], ["Buildings", plainCards.filter(card => cardType(card) === "building").length], ["Average Elixir", average == null ? "—" : Number(average.toFixed(3))]].map(([label, value]) => summaryItem(label, value)).join("");
     const distribution = elixirDistribution(plainCards), maximum = Math.max(1, ...Object.values(distribution));
     document.querySelector("[data-elixir-chart]").innerHTML = Object.entries(distribution).map(([cost, count]) => `<div class="chart-column"><span class="chart-value">${count}</span><div class="chart-track"><span style="height: ${count / maximum * 100}%"></span></div><span class="chart-label">${cost}</span></div>`).join("");
@@ -115,7 +161,7 @@ function renderResult(slots, {save = true, scroll = true} = {}) {
     document.querySelector("[data-deck]").innerHTML = slots.map(slot => {
         const image = slot.activeForm === ActiveForm.EVOLUTION ? slot.card.iconUrls.evolutionMedium : slot.activeForm === ActiveForm.HERO ? slot.card.iconUrls.heroMedium : slot.card.iconUrls.medium;
         const index = slots.indexOf(slot), locked = lockedIds[index] === slot.card.id;
-        return `<article class="card${locked ? " is-locked" : ""}" data-card-id="${slot.card.id}" data-slot-role="${slot.role}" data-active-form="${slot.activeForm}">${slot.role === SlotRole.NORMAL ? "" : `<span class="slot-badge">${roleLabels[slot.role]} Slot</span>`}<button type="button" class="lock-button" data-lock-slot="${index}" aria-pressed="${locked}" aria-label="${locked ? "Unlock" : "Lock"} ${escapeHtml(slot.card.name)}">${locked ? "🔒" : "🔓"}</button><div class="card-image"><img src="${escapeHtml(image)}" alt="${escapeHtml(slot.card.name)}"></div><div class="card-info"><h3>${escapeHtml(slot.card.name)}</h3>${slot.activeForm === ActiveForm.NORMAL ? "" : `<span class="active-form form-badge">${slot.activeForm.replace(/^./, c => c.toUpperCase())}</span>`}<div class="card-details"><span class="rarity">${escapeHtml(slot.card.rarity)}</span><span class="elixir"><span class="elixir-icon"></span>${slot.card.elixirCost ?? "—"}</span></div></div></article>`;
+        return `<article class="card${locked ? " is-locked" : ""}" data-card-id="${slot.card.id}" data-slot-role="${slot.role}" data-active-form="${slot.activeForm}"><button type="button" class="lock-button" data-lock-slot="${index}" aria-pressed="${locked}" aria-label="${locked ? "Unlock" : "Lock"} ${escapeHtml(slot.card.name)}">${icon(locked ? 'lock' : 'unlock')}</button><div class="card-image">${elixirBadge(slot.card)}<img src="${escapeHtml(image || slot.card.iconUrls.medium)}" alt="${escapeHtml(slot.card.name)}"></div>${slot.role === SlotRole.NORMAL ? "" : `<span class="slot-badge">${roleLabels[slot.role]}${slot.activeForm === ActiveForm.NORMAL ? ' · Off' : ''}</span>`}<h3>${escapeHtml(slot.card.name)}</h3></article>`;
     }).join("");
     document.querySelector("[data-deck-link]").href = generateDeckLink(slots);
     const wild = slots[2], notice = document.querySelector("[data-wild-notice]"), dual = hasEvolution(wild.card) && hasHero(wild.card);
@@ -126,7 +172,7 @@ function renderResult(slots, {save = true, scroll = true} = {}) {
     updateFavoriteButton();
     renderSavedDecks();
     const result = document.querySelector("[data-result]"); result.hidden = false;
-    if (scroll) result.scrollIntoView({behavior: "smooth", block: "start"});
+    if (scroll) result.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start"});
 }
 
 function renderSavedDecks() {
@@ -192,9 +238,10 @@ document.querySelector("[data-import-file]").addEventListener("change", async ev
 
 form.addEventListener("submit", event => {
     event.preventDefault(); const error = document.querySelector("[data-error]");
+    const previousLocks = lockedIds;
     lockedIds = Array(8).fill(null);
     try { renderResult(generateDeck(cards, constraintsFromForm())); error.hidden = true; }
-    catch (caught) { error.textContent = caught instanceof ConstraintError ? caught.friendlyMessage : "The deck could not be generated."; error.hidden = false; document.querySelector("[data-result]").hidden = true; }
+    catch (caught) { error.textContent = caught instanceof ConstraintError ? caught.friendlyMessage : "The deck could not be generated."; error.hidden = false; lockedIds = previousLocks; }
 });
 
 document.querySelector("[data-deck]").addEventListener("click", event => {
@@ -228,27 +275,49 @@ document.querySelector("[data-clear-filters]").addEventListener("click", clearFi
 document.querySelector("[data-reset-settings]").addEventListener("click", () => {
     form.reset();
     lockedIds = Array(8).fill(null);
-    activeContext = "available";
+    activeContext = "all";
+    pickerPage = 1;
     cardPool.dataset.availableMode = "all";
     contexts.forEach(updateChips);
     setContext(activeContext);
     updateAvailableLabel();
     updateFilterCount();
+    updatePickerPage();
     document.querySelector("[data-error]").hidden = true;
     if (currentSlots) renderResult(currentSlots, {save: false, scroll: false});
 });
 
 cardPool.addEventListener("click", event => {
-    const contextButton = event.target.closest("[data-picker-context]"); if (contextButton) return setContext(contextButton.dataset.pickerContext);
+    const contextButton = event.target.closest("[data-picker-context]"); if (contextButton) { pickerPage = 1; return setContext(contextButton.dataset.pickerContext); }
     const remove = event.target.closest("[data-remove-card]");
     if (remove) { const input = cardPool.querySelector(`input[name="${remove.dataset.removeCard}_ids"][value="${remove.dataset.cardId}"]`); input.checked = false; input.dispatchEvent(new Event("change", {bubbles: true})); return; }
-    const card = event.target.closest("[data-picker-card]"); if (card && !event.target.closest("input, label, button")) { const input = card.querySelector(`input[name="${activeContext}_ids"]`); input.checked = !input.checked; input.dispatchEvent(new Event("change", {bubbles: true})); }
+    const card = event.target.closest("[data-picker-card]"); if (card && activeContext !== "all" && !(activeContext === "available" && cardPool.dataset.availableMode === "all") && !event.target.closest("input, label, button")) { const input = card.querySelector(`input[name="${activeContext}_ids"]`); input.checked = !input.checked; input.dispatchEvent(new Event("change", {bubbles: true})); }
 });
 cardPool.addEventListener("change", event => {
-    if (event.target.name === "available_mode") { cardPool.dataset.availableMode = event.target.value; updateAvailableLabel(); return; }
-    if (event.target.matches('input[type="checkbox"]')) { updateChips(event.target.name.replace("_ids", "")); setContext(activeContext); }
+    if (event.target.name === "available_mode") { cardPool.dataset.availableMode = event.target.value; updateAvailableLabel(); setContext(activeContext); return; }
+    if (event.target.matches('input[name$="_ids"]')) { updateChips(event.target.name.replace("_ids", "")); setContext(activeContext); }
 });
-cardPool.querySelector("[data-card-search]").addEventListener("input", event => { const query = event.target.value.trim().toLocaleLowerCase(); cardPool.querySelectorAll("[data-picker-card]").forEach(card => { card.hidden = !card.dataset.cardName.includes(query); }); });
+cardPool.querySelector("[data-card-search]").addEventListener("input", () => { pickerPage = 1; updatePickerPage(); });
+document.querySelector("[data-pagination]").addEventListener("click", event => {
+    const button = event.target.closest("[data-page]");
+    if (!button) return;
+    pickerPage = Number(button.dataset.page);
+    updatePickerPage();
+    document.querySelector(`[data-page="${pickerPage}"][aria-current]`)?.focus({preventScroll: true});
+});
+document.querySelector("[data-toggle-filters]").addEventListener("click", event => {
+    const button = event.currentTarget, panel = document.querySelector("#card-filters");
+    panel.hidden = !panel.hidden;
+    button.setAttribute("aria-expanded", String(!panel.hidden));
+});
+document.querySelectorAll("[data-step]").forEach(button => button.addEventListener("click", () => {
+    const input = document.getElementById(button.dataset.for);
+    const value = input.value === "" ? 0 : Number(input.value);
+    input.value = Math.max(0.1, Math.round((value + Number(button.dataset.step) * .1) * 10) / 10);
+    input.dispatchEvent(new Event("input", {bubbles: true}));
+}));
+document.querySelector('a[href="#saved-decks"]').addEventListener('click', () => { document.querySelector('[data-saved-section]').open = true; });
+
 cardPool.querySelector("[data-select-all-available]").addEventListener("click", () => { cardPool.querySelectorAll('input[name="available_ids"]').forEach(input => { input.checked = true; }); updateChips("available"); setContext("available"); });
 cardPool.querySelector("[data-clear-available]").addEventListener("click", () => { cardPool.querySelectorAll('input[name="available_ids"]').forEach(input => { input.checked = false; }); updateChips("available"); setContext("available"); });
 document.querySelectorAll("[data-count-select]").forEach(select => { for (let value = 0; value <= 8; value++) select.add(new Option(value, value)); });
@@ -256,7 +325,8 @@ document.querySelector("[data-card-filters]").addEventListener("input", updateFi
 
 try {
     const response = await fetch("./cards.json"); if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    cards = (await response.json()).items; renderPicker(); contexts.forEach(updateChips); renderSavedDecks(); updateFilterCount();
+    cards = (await response.json()).items; renderPicker(); contexts.forEach(updateChips); renderSavedDecks(); updateFilterCount(); form.querySelector('button[type="submit"]').disabled = false;
 } catch (error) {
+    document.querySelector("[data-pool-status]").textContent = "Card catalog unavailable.";
     const message = document.querySelector("[data-error]"); message.textContent = "Card data could not be loaded. Please refresh the page."; message.hidden = false; form.querySelector('button[type="submit"]').disabled = true;
 }

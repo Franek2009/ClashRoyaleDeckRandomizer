@@ -71,6 +71,9 @@ ClashRoyaleDeckRandomizer/
 │   ├── pages.yml
 │   └── release.yml
 ├── static/
+│   ├── arena.css             # browser UI; style.css is retained for Flask
+│   ├── assets/                # original generated arena and emblem
+│   ├── fonts/                 # locally hosted Barlow fonts and OFL license
 │   ├── app.js
 │   ├── card-filter.js
 │   ├── deck-analysis.js
@@ -92,7 +95,7 @@ ClashRoyaleDeckRandomizer/
 
 ```text
 cards.json
-    -> static/app.js loads card data and manages the interface
+    -> static/app.js loads card data and manages the interface and paginated picker
     -> static/deck-store.js keeps history and favorites in localStorage
     -> static/randomizer.js validates, selects, and arranges the deck
     -> index.html displays the result and Clash Royale link
@@ -100,6 +103,24 @@ cards.json
 
 All asset paths are relative, so the application works below the
 `/ClashRoyaleDeckRandomizer/` GitHub Pages project path.
+
+## Browser interface
+
+The arena interface uses an original background and emblem, locally hosted Barlow
+fonts, and CSS/SVG controls. It preserves the existing generator and local deck
+storage format. The retained Flask template continues to use `static/style.css`;
+the static application uses `static/arena.css`, scoped to `.arena-app`.
+
+- Desktop: deck rules beside the card pool; smaller screens stack the panels.
+- The catalog shows 12 cards per page. Search covers the entire catalog and only
+  changes the visible cards; advanced filters constrain deck generation.
+- All is read-only. Available, Banned, and Required edit the corresponding pools;
+  Available supports all cards or a custom selection. Selections survive paging.
+- Analysis and history are collapsible. Eight empty slots are visible before the
+  first generation, and an invalid configuration preserves the previous result.
+
+See [desktop preview](docs/ui/desktop.png), [mobile preview](docs/ui/mobile.png),
+and [asset provenance and generation prompts](static/assets/README.md).
 
 ## GitHub Pages deployment
 

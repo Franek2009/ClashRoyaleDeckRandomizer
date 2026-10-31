@@ -1,47 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Generate a random Clash Royale deck with configurable slots, card pools, composition, and elixir cost.">
-    <title>Clash Royale Deck Randomizer</title>
-    <link rel="stylesheet" href="./static/style.css">
-    <script type="module" src="./static/app.js"></script>
-</head>
-<body>
-    <main class="container">
-        <header class="header">
-            <h1>Clash Royale Deck Randomizer</h1>
-            <p>Randomize your deck and start playing!</p>
-            <form class="constraints-form" data-generator-form>
-                <div class="constraints-panel">
-                    <section class="constraint-group" aria-labelledby="special-slots-heading">
-                        <h2 id="special-slots-heading">Special Slots</h2>
-                        <p class="constraint-help">Choose what each special deck slot should activate.</p>
-                        <div class="slot-controls">
-                            <fieldset class="slot-control"><legend>Evolution Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="evolution_slot_enabled" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="evolution_slot_enabled" value="on" checked><span>Evolution</span></label></div></fieldset>
-                            <fieldset class="slot-control"><legend>Hero Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="hero_slot_enabled" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="hero_slot_enabled" value="on" checked><span>Hero / Champion</span></label></div></fieldset>
-                            <fieldset class="slot-control"><legend>Wild Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="wild_slot_mode" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="wild_slot_mode" value="evolution" checked><span>Evolution</span></label><label class="segment-option"><input type="radio" name="wild_slot_mode" value="hero_champion"><span>Hero / Champion</span></label></div></fieldset>
-                        </div>
-                        <p class="constraint-help">Wild Slot can activate either an Evolution or a Hero / Champion.</p>
-                    </section>
-                    <section class="constraint-group card-pool" aria-labelledby="card-pool-heading" data-card-pool data-context="available" data-available-mode="all">
-                        <h2 id="card-pool-heading">Card Pool</h2><p class="constraint-help">Choose which cards may, may not, or must appear in the deck.</p>
-                        <fieldset class="available-mode"><legend>Available cards</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="available_mode" value="all" checked><span>All cards</span></label><label class="segment-option"><input type="radio" name="available_mode" value="custom"><span>Custom selection</span></label></div></fieldset>
-                        <div class="picker-contexts" role="group" aria-label="Card selection list"><button type="button" class="picker-context is-active" data-picker-context="available" aria-pressed="true">Available (<span data-available-label>All</span>)</button><button type="button" class="picker-context" data-picker-context="banned" aria-pressed="false">Banned (<span data-selected-count="banned">0</span>)</button><button type="button" class="picker-context" data-picker-context="required" aria-pressed="false">Required (<span data-selected-count="required">0</span>)</button></div>
-                        <p class="picker-context-help" data-picker-context-help>Cards the randomizer may use.</p><p class="available-all-message" data-available-all-message>All cards are available. Switch to Custom selection to edit this pool.</p>
-                        <div class="picker-workspace" data-picker-workspace>
-                            <div class="available-actions" data-available-actions><button type="button" data-select-all-available>Select all</button><button type="button" data-clear-available>Clear</button></div>
-                            <div class="picker-search-field"><label for="card-search">Search cards</label><input id="card-search" type="search" placeholder="e.g. Wizard" autocomplete="off" data-card-search></div>
-                            <div class="selected-card-groups">
-                                <div class="selected-cards is-active" data-selected-pool="available"><p><strong>Available</strong> (<span data-selected-count="available">0</span>)</p><div class="selected-chips" data-selected-chips="available"></div></div>
-                                <div class="selected-cards" data-selected-pool="banned"><p><strong>Banned</strong> (<span data-selected-count="banned">0</span>)</p><div class="selected-chips" data-selected-chips="banned"></div></div>
-                                <div class="selected-cards" data-selected-pool="required"><p><strong>Required</strong> (<span data-selected-count="required">0</span>)</p><div class="selected-chips" data-selected-chips="required"></div></div>
-                            </div>
-                            <div class="card-picker-grid" data-card-picker aria-live="polite"></div>
-                        </div>
-                    </section>
-                    <section class="constraint-group" aria-labelledby="card-filters-heading" data-card-filters>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Build your next Clash Royale deck with exact slot, card pool and elixir constraints.">
+<meta name="theme-color" content="#071b2c"><title>Clash Royale Deck Randomizer</title>
+<link rel="preload" href="./static/fonts/BarlowCondensed-Bold.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="./static/arena.css"><script type="module" src="./static/app.js"></script>
+</head><body class="arena-app"><svg xmlns="http://www.w3.org/2000/svg" class="svg-defs" aria-hidden="true"><symbol id="i-diamond" viewBox="0 0 24 24"><path d="m12 2 9 10-9 10L3 12Z"/><path d="m7 8 5 9 5-9M3 12h18"/></symbol><symbol id="i-rules" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></symbol><symbol id="i-cards" viewBox="0 0 24 24"><rect x="7" y="3" width="13" height="17" rx="2"/><path d="M4 6H3v15h13M11 9l3-3 3 3-3 4Z"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></symbol><symbol id="i-dice" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01"/></symbol><symbol id="i-open" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-11 11M10 4H4v16h16v-6"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 0 0-14-2L3 9m0-6v6h6m-5 7a8 8 0 0 0 14 2l3-3m0 6v-6h-6"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4m-4 5v2"/></symbol><symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0m-4 9v2"/></symbol><symbol id="i-chevron" viewBox="0 0 24 24"><path d="m8 4 8 8-8 8"/></symbol></svg>
+<a class="skip-link" href="#generator">Skip to generator</a>
+<nav class="topbar" aria-label="Main navigation"><a class="brand" href="#generator"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>Deck Randomizer</span></a><div class="nav-links"><a href="#generator" aria-current="page">Generator</a><a href="#saved-decks">Saved decks</a></div><span class="fan-label">A FAN-MADE TOOL</span></nav>
+<main class="container">
+<header class="hero"><img class="hero-emblem" src="./static/assets/emblem.png" alt="" width="112" height="112"><div><p class="eyebrow">8 CARDS. YOUR RULES.</p><h1>Clash Royale<br> <span>Deck Randomizer</span></h1><p class="hero-copy">Generate a deck with your slot, card pool and Elixir rules.</p></div><p class="hero-note">No account needed.<br>Your decks stay in this browser.</p></header>
+<form class="generator-layout" id="generator" data-generator-form>
+<section class="panel rules-panel" aria-labelledby="rules-heading"><div class="panel-heading"><h2 id="rules-heading"><svg class="icon" aria-hidden="true"><use href="#i-rules"></use></svg>Deck Rules</h2><span>Slots &amp; composition</span></div><div class="rules-body"><fieldset class="rule-row"><legend>Evolution Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="evolution_slot_enabled" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="evolution_slot_enabled" value="on" checked><span>Evolution</span></label></div></fieldset><fieldset class="rule-row"><legend>Hero / Champion Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="hero_slot_enabled" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="hero_slot_enabled" value="on" checked><span>Hero / Champion</span></label></div></fieldset><fieldset class="rule-row"><legend>Wild Slot</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="wild_slot_mode" value="off"><span>Off</span></label><label class="segment-option"><input type="radio" name="wild_slot_mode" value="evolution" checked><span>Evolution</span></label><label class="segment-option"><input type="radio" name="wild_slot_mode" value="hero_champion"><span>Hero / Champion</span></label></div></fieldset><div class="rule-row"><label for="spell_count">Spells</label><select id="spell_count" name="spell_count" data-count-select><option value="any">Any</option></select></div><div class="rule-row"><label for="building_count">Buildings</label><select id="building_count" name="building_count" data-count-select><option value="any">Any</option></select></div><div class="elixir-rule"><h3>Average Elixir</h3><div class="elixir-inputs"><div class="elixir-field"><label for="min_average_elixir">Minimum</label><div class="stepper"><button type="button" data-step="-1" data-for="min_average_elixir" aria-label="Decrease minimum average Elixir">−</button><input id="min_average_elixir" name="min_average_elixir" type="number" min="0.1" step="0.1" placeholder="Any" aria-label="Deck average elixir — minimum"><button type="button" data-step="1" data-for="min_average_elixir" aria-label="Increase minimum average Elixir">+</button></div></div><div class="elixir-field"><label for="max_average_elixir">Maximum</label><div class="stepper"><button type="button" data-step="-1" data-for="max_average_elixir" aria-label="Decrease maximum average Elixir">−</button><input id="max_average_elixir" name="max_average_elixir" type="number" min="0.1" step="0.1" placeholder="Any" aria-label="Deck average elixir — maximum"><button type="button" data-step="1" data-for="max_average_elixir" aria-label="Increase maximum average Elixir">+</button></div></div></div><p class="muted">Optional limits for the whole deck.</p></div><button type="button" class="text-button reset-button" data-reset-settings>Reset all settings</button></div></section>
+<section class="panel pool-panel" aria-labelledby="card-pool-heading" data-card-pool data-context="all" data-available-mode="all"><div class="panel-heading"><h2 id="card-pool-heading"><svg class="icon" aria-hidden="true"><use href="#i-cards"></use></svg>Card Pool</h2><span>Choose eligible cards</span></div><div class="pool-body">
+<div class="picker-contexts" role="group" aria-label="Card selection list"><button type="button" class="is-active" data-picker-context="all" aria-pressed="true">All <span data-catalog-count>…</span></button><button type="button" data-picker-context="available" aria-pressed="false">Available <span data-available-label>…</span></button><button type="button" data-picker-context="banned" aria-pressed="false">Banned <span data-selected-count="banned">0</span></button><button type="button" data-picker-context="required" aria-pressed="false">Required <span data-selected-count="required">0</span></button></div>
+<div class="pool-toolbar"><div class="picker-search-field"><svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg><label for="card-search" class="visually-hidden">Search cards</label><input id="card-search" type="search" placeholder="Search cards…" autocomplete="off" data-card-search></div><button class="filter-button" type="button" aria-label="Filters" data-toggle-filters aria-expanded="false" aria-controls="card-filters"><svg class="icon" aria-hidden="true"><use href="#i-rules"></use></svg><span>Filters</span><span class="filter-dot" data-filter-dot hidden></span></button></div>
+<div id="card-filters" class="filter-panel" hidden>                    <section class="constraint-group" aria-labelledby="card-filters-heading" data-card-filters>
                         <div class="section-heading"><h2 id="card-filters-heading">Card Filters</h2><button type="button" class="text-button" data-clear-filters>Clear filters</button></div>
                         <p class="constraint-help">Narrow the available card pool. Selected filters work together.</p>
                         <fieldset class="filter-fieldset">
@@ -65,34 +39,18 @@
                         </div>
                         <p class="filter-result"><strong data-filter-count>All</strong> cards match these filters.</p>
                     </section>
-                    <section class="constraint-group" aria-labelledby="deck-composition-heading"><h2 id="deck-composition-heading">Deck Composition</h2><div class="constraint-grid-two"><div class="constraint-field"><label for="spell_count">Spells</label><select id="spell_count" name="spell_count" data-count-select><option value="any">Any</option></select></div><div class="constraint-field"><label for="building_count">Buildings</label><select id="building_count" name="building_count" data-count-select><option value="any">Any</option></select></div></div><p class="constraint-help">Exact number in the 8-card deck.</p></section>
-                    <section class="constraint-group" aria-labelledby="average-elixir-heading"><h2 id="average-elixir-heading">Average Elixir</h2><div class="constraint-grid-two"><div class="constraint-field"><label for="min_average_elixir">Deck average elixir — minimum</label><input id="min_average_elixir" name="min_average_elixir" type="number" min="0.1" step="0.1"></div><div class="constraint-field"><label for="max_average_elixir">Deck average elixir — maximum</label><input id="max_average_elixir" name="max_average_elixir" type="number" min="0.1" step="0.1"></div></div><p class="constraint-help">Limits the average cost of the entire 8-card deck, not individual card costs.</p></section>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="secondary-button" data-reset-settings>Reset all settings</button>
-                    <button type="submit" class="generate-button">Generate Deck</button>
-                </div>
-            </form>
-            <p class="error-message" role="alert" data-error hidden></p>
-        </header>
-        <section class="deck-section" data-result hidden>
-            <h2>Your Deck</h2>
-            <div class="result-summary" aria-label="Deck result summary"><section class="summary-group"><h3>Special Slots</h3><dl class="slot-summary" data-slot-summary></dl></section><section class="summary-group"><h3>Deck</h3><dl class="deck-summary" data-deck-summary></dl></section></div>
-            <div class="analysis-panel">
-                <section><h3>Elixir Distribution</h3><div class="elixir-chart" data-elixir-chart></div></section>
-                <section><h3>Deck Insights</h3><ul class="deck-insights" data-deck-insights></ul></section>
-            </div>
-            <p class="lock-help">Lock any cards you want to keep, then generate the remaining slots again.</p>
-            <div class="deck" data-deck></div>
-            <p class="wild-form-notice" data-wild-notice hidden></p>
-            <div class="result-actions">
-                <button type="button" class="secondary-button" data-generate-again>Generate again</button>
-                <button type="button" class="secondary-button" data-favorite-current aria-pressed="false">☆ Add to favorites</button>
-                <a class="open-game-button" data-deck-link>Open in Clash Royale</a>
-            </div>
-        </section>
-        <section class="saved-section" data-saved-section>
-            <div class="saved-heading"><div><h2>History &amp; Favorites</h2><p>Your decks are stored only in this browser.</p></div><button type="button" class="text-button" data-clear-history>Clear history</button></div>
+</div>
+<div class="pool-editing" data-pool-editing hidden><p class="picker-context-help" data-picker-context-help></p><fieldset class="available-mode"><legend class="visually-hidden">Available cards</legend><div class="segmented-options"><label class="segment-option"><input type="radio" name="available_mode" value="all" checked><span>All cards</span></label><label class="segment-option"><input type="radio" name="available_mode" value="custom"><span>Custom selection</span></label></div></fieldset><p class="available-all-message" data-available-all-message>All cards are available. Choose Custom selection to edit.</p><div class="available-actions" data-available-actions><button type="button" data-select-all-available>Select all</button><button type="button" data-clear-available>Clear</button></div>
+<div class="selected-card-groups"><div data-selected-pool="available" hidden><div class="selected-chips" data-selected-chips="available"></div></div><div data-selected-pool="banned" hidden><div class="selected-chips" data-selected-chips="banned"></div></div><div data-selected-pool="required" hidden><div class="selected-chips" data-selected-chips="required"></div></div></div></div>
+<div class="pool-status" data-pool-status role="status">Loading the card catalog…</div><div class="card-picker-grid" data-card-picker aria-label="Card catalog"></div><p class="pool-empty" data-pool-empty hidden>No cards match that search. Try another name.</p><nav class="pagination" data-pagination aria-label="Card pages"></nav>
+</div></section>
+<div class="generate-area"><button type="submit" class="generate-button" disabled><svg class="icon" aria-hidden="true"><use href="#i-dice"></use></svg>Generate Deck</button><p class="generate-caption">Uses your selected pool and deck rules.</p></div>
+<p class="error-message" role="alert" data-error hidden></p>
+</form>
+<section class="panel deck-section" data-result aria-labelledby="deck-heading"><div class="panel-heading"><h2 id="deck-heading"><svg class="icon" aria-hidden="true"><use href="#i-cards"></use></svg>Your Deck</h2><span class="deck-average">Average Elixir <strong data-average>—</strong><span class="elixir-drop" aria-hidden="true"></span></span></div><div class="deck-body"><p class="muted" data-deck-empty>Your next deck is waiting. Set your rules and roll the dice.</p><div class="deck" data-deck><div class="empty-card" aria-label="Empty slot 1"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>EVOLUTION</span></div><div class="empty-card" aria-label="Empty slot 2"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>HERO</span></div><div class="empty-card" aria-label="Empty slot 3"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>WILD</span></div><div class="empty-card" aria-label="Empty slot 4"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>4</span></div><div class="empty-card" aria-label="Empty slot 5"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>5</span></div><div class="empty-card" aria-label="Empty slot 6"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>6</span></div><div class="empty-card" aria-label="Empty slot 7"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>7</span></div><div class="empty-card" aria-label="Empty slot 8"><svg class="icon" aria-hidden="true"><use href="#i-diamond"></use></svg><span>8</span></div></div>
+<p class="lock-help" data-has-deck hidden>Lock cards to keep them when you roll again.</p><p class="wild-form-notice" data-wild-notice hidden></p><div class="result-actions" data-has-deck hidden><a class="open-game-button" data-deck-link><svg class="icon" aria-hidden="true"><use href="#i-open"></use></svg>Open in Clash Royale</a><button type="button" class="secondary-button" data-generate-again><svg class="icon" aria-hidden="true"><use href="#i-refresh"></use></svg>Generate again</button><button type="button" class="text-button" data-favorite-current aria-pressed="false">☆ Add to favorites</button></div></div></section>
+<details class="panel analysis-section" data-analysis hidden><summary><svg class="icon" aria-hidden="true"><use href="#i-rules"></use></svg>Deck Analysis <span>Elixir &amp; composition</span></summary><div class="details-body"><div class="result-summary" aria-label="Deck result summary"><section><h3>Special Slots</h3><dl data-slot-summary></dl></section><section><h3>Deck</h3><dl data-deck-summary></dl></section></div><div class="analysis-panel"><section><h3>Elixir Distribution</h3><div class="elixir-chart" data-elixir-chart></div></section><section><h3>Deck Insights</h3><ul class="deck-insights" data-deck-insights></ul></section></div></div></details>
+<details class="panel saved-section" id="saved-decks" data-saved-section><summary><svg class="icon" aria-hidden="true"><use href="#i-cards"></use></svg>History &amp; Favorites <span>Kept in this browser</span></summary><div class="details-body">            <div class="saved-heading"><div><h3>Your saved decks</h3><p>Your decks are stored only in this browser.</p></div><button type="button" class="text-button" data-clear-history>Clear history</button></div>
             <div class="data-actions" aria-label="Deck data tools">
                 <button type="button" class="secondary-button" data-export-decks>Export data</button>
                 <button type="button" class="secondary-button" data-import-decks>Import data</button>
@@ -103,8 +61,6 @@
             <div class="saved-tabs" role="group" aria-label="Saved deck filter"><button type="button" class="is-active" data-saved-filter="all" aria-pressed="true">Recent</button><button type="button" data-saved-filter="favorites" aria-pressed="false">Favorites</button></div>
             <p class="saved-empty" data-saved-empty hidden>No decks here yet.</p>
             <div class="saved-decks" data-saved-decks></div>
-        </section>
-    </main>
-    <footer class="footer"><p>This is an unofficial fan-made project and is not affiliated with, sponsored by, or endorsed by Supercell.</p></footer>
-</body>
-</html>
+</div></details>
+<footer class="footer"><p>This is an unofficial fan-made project and is not affiliated with, sponsored by, or endorsed by Supercell. Card names and artwork belong to Supercell.</p></footer>
+</main></body></html>
