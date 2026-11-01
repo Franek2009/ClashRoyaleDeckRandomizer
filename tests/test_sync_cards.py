@@ -23,7 +23,7 @@ def local_git(cwd, *arguments):
 @pytest.fixture
 def repository(monkeypatch, tmp_path):
     # Never inspect actual API/GitHub credential environment variables.
-    monkeypatch.setattr(sync.os, "environ", {"PATH":"/usr/bin:/bin", "XDG_STATE_HOME":str(tmp_path / "state"),
+    monkeypatch.setattr(sync.os, "environ", {"PATH":sync.os.environ.get("PATH", sync.os.defpath), "XDG_STATE_HOME":str(tmp_path / "state"),
         "GIT_CONFIG_GLOBAL":"/dev/null", "GIT_CONFIG_NOSYSTEM":"1"})
     remote = tmp_path / "remote.git"
     seed = tmp_path / "seed"

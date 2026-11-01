@@ -50,7 +50,7 @@ def test_javascript_and_python_agree_for_the_complete_catalog(cards):
         console.log(JSON.stringify(Object.fromEntries(cards.map(card=>[card.id,cardType(card)]))));
     """
     result = subprocess.run(["node", "--input-type=module", "-e", script], cwd=ROOT,
-        env={"PATH":os.defpath}, capture_output=True, text=True, check=True, timeout=10)
+        env={"PATH":os.environ.get("PATH", os.defpath)}, capture_output=True, text=True, check=True, timeout=10)
     actual = json.loads(result.stdout)
     assert actual["28000016"] == "troop"
     assert actual == {str(card["id"]):card_type(card).value for card in cards}
