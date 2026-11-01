@@ -24,7 +24,7 @@ const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}
 const elixirBadge = card => `<span class="elixir-badge" aria-label="${card.elixirCost ?? 'Unknown'} Elixir">${card.elixirCost ?? '–'}</span>`;
 
 function renderPicker() {
-    picker.innerHTML = cards.map(card => `<article class="picker-card" data-picker-card data-card-name="${escapeHtml(card.name.toLocaleLowerCase())}" data-card-id="${card.id}"><div class="picker-art">${elixirBadge(card)}<img src="${escapeHtml(card.iconUrls.medium)}" alt="" loading="lazy"><span class="selection-mark" hidden>✓</span></div><h3>${escapeHtml(card.name)}</h3>${contexts.map(context => `<label class="picker-card-control" data-pool-control="${context}" hidden><input type="checkbox" name="${context}_ids" value="${card.id}" aria-label="${context}: ${escapeHtml(card.name)}"><span class="visually-hidden">${context}: ${escapeHtml(card.name)}</span></label>`).join("")}</article>`).join("");
+    picker.innerHTML = cards.map(card => `<article class="picker-card" data-picker-card data-card-name="${escapeHtml(card.name.toLocaleLowerCase())}" data-card-id="${card.id}"><div class="picker-art">${elixirBadge(card)}<img src="${escapeHtml(card.iconUrls.medium)}" alt="" loading="lazy"><span class="selection-mark" aria-hidden="true" hidden>✓</span></div><h3>${escapeHtml(card.name)}</h3>${contexts.map(context => `<label class="picker-card-control" data-pool-control="${context}" hidden><input type="checkbox" name="${context}_ids" value="${card.id}" aria-label="${context}: ${escapeHtml(card.name)}"><span class="visually-hidden">${context}: ${escapeHtml(card.name)}</span></label>`).join("")}</article>`).join("");
     document.querySelector("[data-catalog-count]").textContent = cards.length;
     setContext(activeContext);
 }
@@ -88,7 +88,9 @@ function setContext(context) {
     cardPool.querySelectorAll("[data-picker-card]").forEach(card => {
         const selected = context !== "all" && ((available && allAvailable) || card.querySelector(`input[name="${context}_ids"]`).checked);
         card.classList.toggle("is-selected", selected);
-        card.querySelector(".selection-mark").hidden = !selected;
+        const mark = card.querySelector(".selection-mark");
+        mark.hidden = !selected;
+        mark.textContent = {available: "✓", banned: "×", required: "!"}[context] || "";
     });
     updatePickerPage();
 }

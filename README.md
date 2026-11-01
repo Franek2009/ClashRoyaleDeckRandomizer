@@ -111,21 +111,36 @@ add slogans, hero descriptions, promotional claims, feature showcases, or
 redundant helper text. Explain mechanics only when needed; preserve errors,
 accessibility labels, and the fan-content notice.
 
-The arena interface uses an original background and emblem, locally hosted Barlow
-fonts, and CSS/SVG controls. It preserves the existing generator and local deck
-storage format. The retained Flask template continues to use `static/style.css`;
+The interface uses flat dark navy surfaces, thin borders, blue primary actions,
+a small original emblem, locally hosted Barlow fonts, and CSS/SVG controls.
+Decorative arena artwork remains in the repository but is not loaded by the UI.
+The existing generator and local deck storage format are preserved. The retained Flask template continues to use `static/style.css`;
 the static application uses `static/arena.css`, scoped to `.arena-app`.
 
-- Desktop: deck rules beside the card pool; smaller screens stack the panels.
+- Desktop: a 380px rules column beside the larger card pool, with the deck below.
+  Smaller screens stack the panels; at 390px the picker has three columns and
+  the generated deck has four columns in two rows. Both navigation links remain
+  available on mobile.
 - The catalog shows 12 cards per page. Search covers the entire catalog and only
   changes the visible cards; advanced filters constrain deck generation.
 - All is read-only. Available, Banned, and Required edit the corresponding pools;
   Available supports all cards or a custom selection. Selections survive paging.
 - Analysis and history are collapsible. Eight empty slots are visible before the
-  first generation, and an invalid configuration preserves the previous result.
+  first generation as compact placeholders. Invalid configurations preserve the
+  previous result. Locks sit below the card artwork with 44px touch targets.
+- Pool selections use different symbols as well as borders: available ✓, banned
+  ×, required !. Slot names and lock states remain explicitly labeled.
 
-See [desktop preview](docs/ui/desktop.png), [mobile preview](docs/ui/mobile.png),
-and [asset provenance and generation prompts](static/assets/README.md).
+Screenshots at 1440px desktop and 390px mobile, captured with actual loaded
+card artwork (the automated functional tests block external artwork):
+
+| View | Before generation | Generated deck |
+| --- | --- | --- |
+| Desktop | [Empty](docs/ui/desktop-empty.png) | [Result](docs/ui/desktop.png) |
+| Mobile | [Empty](docs/ui/mobile-empty.png) | [Result](docs/ui/mobile.png) |
+
+Original artwork provenance is documented in
+[asset provenance and generation prompts](static/assets/README.md).
 
 ## GitHub Pages deployment
 

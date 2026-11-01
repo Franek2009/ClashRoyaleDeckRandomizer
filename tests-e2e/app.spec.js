@@ -189,3 +189,32 @@ test("relative assets work under the GitHub Pages project path", async ({page}) 
     await expect(page.locator('[data-picker-card]:visible')).toHaveCount(12);
     expect(await page.locator('.deck').evaluate(node => getComputedStyle(node).display)).toBe('grid');
 });
+
+test("pool states have distinct non-color markers", async ({page}) => {
+    for (const [context, symbol] of [["available", "✓"], ["banned", "×"], ["required", "!"]]) {
+        await page.locator(`[data-picker-context="${context}"]`).click();
+        const card = page.locator('[data-picker-card]:visible').first();
+        if (context !== "available") await card.getByRole("checkbox").check();
+        await expect(card.locator(".selection-mark")).toBeVisible();
+        await expect(card.locator(".selection-mark")).toHaveText(symbol);
+        await expect(card.getByRole("checkbox")).toHaveAccessibleName(new RegExp(`^${context}:`));
+    }
+});
+
+test("mobile controls remain readable with touch-sized actions", async ({page}) => {
+    await page.setViewportSize({width:390, height:844});
+    await expect(page.getByRole("link", {name:"Generator",exact:true})).toBeVisible();
+    await expect(page.getByRole("link", {name:"Saved decks",exact:true})).toBeVisible();
+    expect(await page.locator('[data-card-picker]').evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length)).toBe(3);
+    for (const label of await page.locator('.segment-option span:visible').all()) {
+        const size = await label.evaluate(node => ({height:node.clientHeight, fits:node.scrollWidth <= node.clientWidth && node.scrollHeight <= node.clientHeight}));
+        expect(size.height).toBeGreaterThanOrEqual(44);
+        expect(size.fits).toBe(true);
+    }
+    await generateDeck(page);
+    for (const button of await page.locator('[data-lock-slot]').all()) {
+        const box = await button.boundingBox();
+        expect(box.width).toBeGreaterThanOrEqual(44);
+        expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+});
