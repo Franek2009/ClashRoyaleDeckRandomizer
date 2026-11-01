@@ -42,7 +42,7 @@ export class ConstraintError extends Error {
 
 export function cardType(card) {
     if (!Number.isInteger(card.id)) throw new TypeError("card ID must be an integer");
-    if (card.id === 27000010 || card.id === 28000025) return CardType.TROOP;
+    if (card.id === 27000010 || card.id === 28000016 || card.id === 28000025) return CardType.TROOP;
     if (card.id >= 26000000 && card.id < 27000000) return CardType.TROOP;
     if (card.id >= 27000000 && card.id < 28000000) return CardType.BUILDING;
     if (card.id >= 28000000 && card.id < 29000000) return CardType.SPELL;

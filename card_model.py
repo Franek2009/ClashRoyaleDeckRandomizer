@@ -34,6 +34,7 @@ class CardType(Enum):
 
 CARD_TYPE_OVERRIDES = {
     27000010: CardType.TROOP,  # Furnace, reworked from a Building
+    28000016: CardType.TROOP,  # Heal Spirit, formerly the Heal spell
     28000025: CardType.TROOP,  # Spirit Empress
 }
 

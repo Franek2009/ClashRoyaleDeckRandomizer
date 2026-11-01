@@ -1,4 +1,5 @@
 import re
+import json
 
 import app as app_module
 from app import app
@@ -246,7 +247,8 @@ def test_card_picker_and_search_are_rendered():
     assert b'data-picker-context="available"' in response.data
     assert b'data-picker-context="banned"' in response.data
     assert b'data-picker-context="required"' in response.data
-    assert response.data.count(b"data-picker-card ") == 122
+    with open("cards.json", encoding="utf-8") as source:
+        assert response.data.count(b"data-picker-card ") == len(json.load(source)["items"])
     assert b'/static/app.js' in response.data
     assert b"data-select-all-available" in response.data
     assert b"data-clear-available" in response.data

@@ -272,9 +272,11 @@
       "name": "Ice Wizard",
       "id": 26000023,
       "maxLevel": 8,
+      "maxEvolutionLevel": 2,
       "elixirCost": 3,
       "iconUrls": {
-        "medium": "https://api-assets.clashroyale.com/cards/300/W3dkw0HTw9n1jB-zbknY2w3wHuyuLxSRIAV5fUT1SEY.png"
+        "medium": "https://api-assets.clashroyale.com/cards/300/W3dkw0HTw9n1jB-zbknY2w3wHuyuLxSRIAV5fUT1SEY.png",
+        "heroMedium": "https://api-assets.clashroyale.com/cardheroes/300/W3dkw0HTw9n1jB-zbknY2w3wHuyuLxSRIAV5fUT1SEY.png"
       },
       "rarity": "legendary"
     },
@@ -484,9 +486,11 @@
       "name": "Electro Wizard",
       "id": 26000042,
       "maxLevel": 8,
+      "maxEvolutionLevel": 2,
       "elixirCost": 4,
       "iconUrls": {
-        "medium": "https://api-assets.clashroyale.com/cards/300/RsFaHgB3w6vXsTjXdPr3x8l_GbV9TbOUCvIx07prbrQ.png"
+        "medium": "https://api-assets.clashroyale.com/cards/300/RsFaHgB3w6vXsTjXdPr3x8l_GbV9TbOUCvIx07prbrQ.png",
+        "heroMedium": "https://api-assets.clashroyale.com/cardheroes/300/RsFaHgB3w6vXsTjXdPr3x8l_GbV9TbOUCvIx07prbrQ.png"
       },
       "rarity": "legendary"
     },
@@ -494,9 +498,11 @@
       "name": "Elite Barbarians",
       "id": 26000043,
       "maxLevel": 16,
+      "maxEvolutionLevel": 1,
       "elixirCost": 6,
       "iconUrls": {
-        "medium": "https://api-assets.clashroyale.com/cards/300/C88C5JH_F3lLZj6K-tLcMo5DPjrFmvzIb1R2M6xCfTE.png"
+        "medium": "https://api-assets.clashroyale.com/cards/300/C88C5JH_F3lLZj6K-tLcMo5DPjrFmvzIb1R2M6xCfTE.png",
+        "evolutionMedium": "https://api-assets.clashroyale.com/cardevolutions/300/C88C5JH_F3lLZj6K-tLcMo5DPjrFmvzIb1R2M6xCfTE.png"
       },
       "rarity": "common"
     },
@@ -840,9 +846,11 @@
       "name": "Electro Giant",
       "id": 26000085,
       "maxLevel": 11,
+      "maxEvolutionLevel": 1,
       "elixirCost": 7,
       "iconUrls": {
-        "medium": "https://api-assets.clashroyale.com/cards/300/_uChZkNHAMq6tPb3v6A49xinOe3CnhjstOhG6OZbPYc.png"
+        "medium": "https://api-assets.clashroyale.com/cards/300/_uChZkNHAMq6tPb3v6A49xinOe3CnhjstOhG6OZbPYc.png",
+        "evolutionMedium": "https://api-assets.clashroyale.com/cardevolutions/300/_uChZkNHAMq6tPb3v6A49xinOe3CnhjstOhG6OZbPYc.png"
       },
       "rarity": "epic"
     },
@@ -947,6 +955,16 @@
         "medium": "https://api-assets.clashroyale.com/cards/300/X0dTFs7OGUavreDEzOtYd_YNZ8Zly6qgAE-dd-bNfWU.png"
       },
       "rarity": "legendary"
+    },
+    {
+      "name": "Minion Giant",
+      "id": 26000107,
+      "maxLevel": 14,
+      "elixirCost": 4,
+      "iconUrls": {
+        "medium": "https://api-assets.clashroyale.com/cards/300/VRjL0yVLzrnoe-IBh2l2fDHDok0L-UoM9cG-X_8xbMk.png"
+      },
+      "rarity": "rare"
     },
     {
       "name": "Cannon",

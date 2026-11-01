@@ -1,4 +1,7 @@
 import {expect, test} from "@playwright/test";
+import fs from "node:fs";
+
+const catalogCount = JSON.parse(fs.readFileSync(new URL('../cards.json', import.meta.url))).items.length;
 
 const browserErrors = new WeakMap();
 
@@ -91,7 +94,7 @@ test("deck grid adapts to desktop and mobile viewports", async ({page}, testInfo
 test("starts with eight empty slots and a browsable catalog", async ({page}) => {
     await expect(page.locator(".empty-card")).toHaveCount(8);
     await expect(page.locator("[data-picker-card]:visible")).toHaveCount(12);
-    await expect(page.locator("[data-pool-status]")).toContainText("of 122 cards");
+    await expect(page.locator("[data-pool-status]")).toContainText(`of ${catalogCount} cards`);
     await expect(page.locator("[data-saved-section]")).not.toHaveAttribute("open");
     await expect(page.locator("#card-filters")).toBeHidden();
 });
@@ -126,7 +129,7 @@ test("all-available mode prevents editing until custom mode is chosen", async ({
     await page.getByLabel('Custom selection', {exact:true}).check();
     await expect(page.locator('[data-picker-card]:visible').first().getByRole('checkbox')).toBeEnabled();
     await page.getByRole('button', {name:'Select all',exact:true}).click();
-    await expect(page.locator('[data-available-label]')).toHaveText('122');
+    await expect(page.locator('[data-available-label]')).toHaveText(String(catalogCount));
     await generateDeck(page);
 });
 
@@ -409,4 +412,24 @@ test("an unreadable storage container is preserved while generation remains usab
     await generateDeck(page);
     expect(await page.evaluate(() => localStorage.getItem('clash-royale-randomizer.decks.v1'))).toBe('not json');
     await expect(page.locator('[data-favorite-current]')).toBeDisabled();
+});
+
+test("filtered required Heal Spirit does not consume the single requested Spell", async ({page}) => {
+    await openRules(page);
+    for (const name of ['Evolution Slot', 'Hero / Champion Slot', 'Wild Slot']) {
+        await page.getByRole('group', {name, exact:true}).getByRole('radio', {name:'Off', exact:true}).check();
+    }
+    await page.locator('[name="spell_count"]').selectOption('1');
+    await page.getByRole('button', {name:'Filters', exact:true}).click();
+    await page.getByLabel('Maximum Elixir', {exact:true}).fill('3');
+    await page.locator('[data-picker-context="required"]').click();
+    await page.getByRole('searchbox', {name:'Search cards'}).fill('Heal Spirit');
+    await page.getByRole('checkbox', {name:'required: Heal Spirit', exact:true}).check();
+    await generateDeck(page);
+    const ids = await page.locator('[data-deck] .card').evaluateAll(nodes => nodes.map(node => Number(node.dataset.cardId)));
+    expect(ids).toContain(28000016);
+    const spells = ids.filter(id => id >= 28000000 && id < 29000000 && ![28000016,28000025].includes(id));
+    expect(spells).toHaveLength(1);
+    await page.locator('[data-analysis] summary').click();
+    await expect(page.locator('[data-deck-summary] dt:text-is("Spells") + dd')).toHaveText('1');
 });

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import {filterCards} from "../static/card-filter.js";
 
 import {
     ActiveForm, CardType, ConstraintError, SlotRole, averageElixir, cardType,
@@ -74,4 +75,55 @@ test("locked cards stay in their exact slots when the rest is generated again", 
 test("a card cannot be locked into an unsafe special slot", () => {
     const normal = cards.find(card => !hasEvolution(card) && !hasHero(card) && !isChampion(card));
     assert.throws(() => generateDeck(cards, {lockedIds: [normal.id]}), error => error instanceof ConstraintError && error.code === "invalid_locked_cards");
+});
+
+test("Heal Spirit is a Troop despite its legacy Spell ID namespace", () => {
+    const heal = cards.find(card => card.id === 28000016);
+    assert.ok(heal);
+    assert.equal(cardType(heal), CardType.TROOP);
+});
+
+test("required Heal Spirit plus one Spell needs an additional real Spell, including after filtering", () => {
+    const names = ["Heal Spirit", "Knight", "Archers", "Goblins", "Skeletons", "Ice Spirit", "Bats", "Zap"];
+    const pool = names.map(name => {
+        const card = cards.find(card => card.name === name);
+        assert.ok(card, name);
+        return card;
+    });
+    const filtered = filterCards(pool, {maxElixir:3});
+    assert.equal(filtered.length, 8);
+    const slots = generateDeck(cards, {availableIds:new Set(filtered.map(card => card.id)),
+        requiredIds:new Set([28000016]), spellCount:1, buildingCount:0,
+        evolutionSlotEnabled:false, heroSlotEnabled:false, wildSlotMode:"off"});
+    assert.equal(new Set(slots.map(slot => slot.card.id)).size, 8);
+    assert.ok(slots.some(slot => slot.card.id === 28000016));
+    assert.deepEqual(slots.filter(slot => cardType(slot.card) === CardType.SPELL).map(slot => slot.card.name), ["Zap"]);
+});
+
+test("Heal Spirit cannot satisfy a requested Spell when no actual Spell is available", () => {
+    const names = new Set(["Heal Spirit", "Knight", "Archers", "Goblins", "Skeletons", "Ice Spirit", "Bats", "Minions"]);
+    const availableIds = new Set(cards.filter(card => names.has(card.name)).map(card => card.id));
+    assert.equal(availableIds.size, 8);
+    assert.throws(() => generateDeck(cards, {availableIds, requiredIds:new Set([28000016]), spellCount:1,
+        evolutionSlotEnabled:false, heroSlotEnabled:false, wildSlotMode:"off"}),
+        error => error instanceof ConstraintError && error.code === "not_enough_spells");
+});
+
+test("new snapshot forms work in their physical and Wild slots, including locks and link order", () => {
+    for (const [id, role, form] of [[26000023, 1, "hero"], [26000042, 1, "hero"],
+        [26000043, 0, "evolution"], [26000085, 0, "evolution"]]) {
+        for (const index of [role, 2]) {
+            const lockedIds = Array(8).fill(null); lockedIds[index] = id;
+            const options = {lockedIds, wildSlotMode:form === "hero" ? "hero_champion" : "evolution"};
+            const slots = generateDeck(cards, options);
+            assert.equal(slots[index].card.id, id);
+            assert.equal(slots[index].activeForm, form);
+            assert.equal(new Set(slots.map(slot => slot.card.id)).size, 8);
+            const url = generateDeckLink(slots);
+            assert.ok(url.includes(`deck=${slots.map(slot => slot.card.id).join(";")}&`));
+            const again = generateDeck(cards, options);
+            assert.equal(again[index].card.id, id);
+            assert.equal(again[index].activeForm, form);
+        }
+    }
 });

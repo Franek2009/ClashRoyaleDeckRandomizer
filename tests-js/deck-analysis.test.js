@@ -33,3 +33,8 @@ test("ordinary decks receive a neutral positive result", () => {
     ];
     assert.deepEqual(deckInsights(cards), [{kind: "positive", text: "No unusual Elixir or card-type patterns detected."}]);
 });
+
+test("a deck of seven ordinary Troops and Heal Spirit still has no Spells", () => {
+    const deck = [card(28000016, 1), ...Array.from({length:7}, (_, index) => card(26000001 + index, 3))];
+    assert.ok(deckInsights(deck).some(insight => insight.text === "No Spell cards in this deck."));
+});
