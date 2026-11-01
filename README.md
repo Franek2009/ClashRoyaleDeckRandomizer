@@ -104,6 +104,31 @@ cards.json
 All asset paths are relative, so the application works below the
 `/ClashRoyaleDeckRandomizer/` GitHub Pages project path.
 
+### Saved deck validation
+
+The existing version 1 storage/export format is unchanged. `createdAt` must be
+a finite numeric timestamp in milliseconds within JavaScript Date's inclusive
+range of -8,640,000,000,000,000 to +8,640,000,000,000,000. Negative timestamps are
+supported. Strings, null, non-finite numbers and dates outside that range are
+rejected. Reading invalid records does not rewrite storage or remove valid
+records; an import containing only rejected/unchanged entries does not write.
+
+Slot roles must be Evolution, Hero, Wild, then five Normal slots, in that order.
+Active Evolution/Hero forms require the matching catalog capability and a
+compatible physical slot. Champions require the Champion form in Hero or Wild.
+Import, history display and restoration validate against the loaded catalog.
+Version 1 did not save original generator settings: inactive Normal forms on
+non-Champions remain valid historical metadata, including when a card later gains
+a special form. These records are not reinterpreted using current form settings.
+
+Storage access/write failures show a separate warning and do not disable the
+generator. Failed operations do not report a successful save/import/export or
+automatically clear local data. The existing history limit and favorite retention
+rules still apply to successful saves/imports.
+If the entire stored container is unreadable JSON or is not an array, writes are
+blocked with the same warning rather than replacing it with an empty history.
+The raw data remains available for recovery or an explicit Delete all data action.
+
 ## Browser interface
 
 UI copy is functional: keep the header to the app name and navigation. Do not

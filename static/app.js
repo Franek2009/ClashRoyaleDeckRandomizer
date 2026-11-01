@@ -1,5 +1,5 @@
 import {ActiveForm, ConstraintError, SlotRole, averageElixir, cardType, generateDeck, generateDeckLink, hasEvolution, hasHero} from "./randomizer.js";
-import {clearAllDecks, clearHistory, exportDeckData, importDeckData, readDecks, removeDeck, restoreSlots, saveDeck, toggleFavorite} from "./deck-store.js";
+import {DeckStorageError, clearAllDecks, clearHistory, exportDeckData, importDeckData, readDecks, removeDeck, restoreSlots, saveDeck, toggleFavorite} from "./deck-store.js";
 import {deckInsights, elixirDistribution} from "./deck-analysis.js";
 import {filterCards, filteredSelectionIssue} from "./card-filter.js";
 
@@ -19,6 +19,18 @@ let savedFilter = "all";
 
 const escapeHtml = value => String(value).replace(/[&<>"]/g, char => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[char]);
 const checkedIds = context => new Set([...cardPool.querySelectorAll(`input[name="${context}_ids"]:checked`)].map(input => Number(input.value)));
+
+function withDeckStorage(action, fallback = null) {
+    try { return action(); }
+    catch (error) {
+        if (!(error instanceof DeckStorageError)) throw error;
+        const warning = document.querySelector("[data-storage-warning]");
+        warning.textContent = "Deck storage is unavailable, full or unreadable. History and favorites may not be saved. You can still generate decks.";
+        warning.hidden = false;
+        document.querySelector("[data-data-status]").textContent = "Deck storage could not be accessed. The operation was not completed.";
+        return fallback;
+    }
+}
 
 const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
 const elixirBadge = card => `<span class="elixir-badge" aria-label="${card.elixirCost ?? 'Unknown'} Elixir">${card.elixirCost ?? '–'}</span>`;
@@ -139,10 +151,11 @@ function constraintsFromForm() {
 const summaryItem = (label, value) => `<div><dt>${label}</dt><dd>${value}</dd></div>`;
 function updateFavoriteButton() {
     const button = document.querySelector("[data-favorite-current]");
-    const entry = readDecks().find(deck => deck.id === currentEntryId);
+    const entry = withDeckStorage(() => readDecks(undefined, cards), []).find(deck => deck.id === currentEntryId);
     const favorite = Boolean(entry?.favorite);
     button.setAttribute("aria-pressed", String(favorite));
     button.textContent = favorite ? "★ Favorited" : "☆ Add to favorites";
+    button.disabled = !entry;
 }
 
 function renderResult(slots, {save = true, scroll = true} = {}) {
@@ -166,7 +179,7 @@ function renderResult(slots, {save = true, scroll = true} = {}) {
     const wild = slots[2], notice = document.querySelector("[data-wild-notice]"), dual = hasEvolution(wild.card) && hasHero(wild.card);
     notice.hidden = !dual; if (dual) notice.textContent = `After importing the deck, set the Wild Slot to ${wild.activeForm === ActiveForm.EVOLUTION ? "Evolution" : "Hero"}.`;
     if (save) {
-        try { currentEntryId = saveDeck(slots).id; } catch { currentEntryId = null; }
+        currentEntryId = withDeckStorage(() => saveDeck(slots))?.id ?? null;
     }
     updateFavoriteButton();
     renderSavedDecks();
@@ -176,7 +189,7 @@ function renderResult(slots, {save = true, scroll = true} = {}) {
 
 function renderSavedDecks() {
     if (!cards.length) return;
-    const allDecks = readDecks();
+    const allDecks = withDeckStorage(() => readDecks(undefined, cards), []);
     const decks = savedFilter === "favorites" ? allDecks.filter(deck => deck.favorite) : allDecks;
     document.querySelector("[data-saved-empty]").hidden = decks.length !== 0;
     document.querySelector("[data-saved-decks]").innerHTML = decks.map(deck => {
@@ -187,7 +200,7 @@ function renderSavedDecks() {
     }).join("");
 }
 
-document.querySelector("[data-saved-section]").addEventListener("click", event => {
+document.querySelector("[data-saved-section]").addEventListener("click", event => withDeckStorage(() => {
     const filter = event.target.closest("[data-saved-filter]");
     if (filter) {
         savedFilter = filter.dataset.savedFilter;
@@ -195,7 +208,7 @@ document.querySelector("[data-saved-section]").addEventListener("click", event =
         renderSavedDecks(); return;
     }
     if (event.target.closest("[data-export-decks]")) {
-        const blob = new Blob([JSON.stringify(exportDeckData(), null, 2)], {type: "application/json"});
+        const blob = new Blob([JSON.stringify(exportDeckData(undefined, Date.now(), cards), null, 2)], {type: "application/json"});
         const url = URL.createObjectURL(blob), link = document.createElement("a");
         link.href = url; link.download = `clash-royale-decks-${new Date().toISOString().slice(0, 10)}.json`;
         document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 0);
@@ -214,23 +227,26 @@ document.querySelector("[data-saved-section]").addEventListener("click", event =
     const item = event.target.closest("[data-saved-id]"); if (!item) return;
     const id = item.dataset.savedId;
     if (event.target.closest("[data-view-saved]")) {
-        const entry = readDecks().find(deck => deck.id === id), slots = entry && restoreSlots(entry, cards);
+        const entry = readDecks(undefined, cards).find(deck => deck.id === id), slots = entry && restoreSlots(entry, cards);
         if (slots) { lockedIds = Array(8).fill(null); currentEntryId = id; renderResult(slots, {save: false}); }
     } else if (event.target.closest("[data-favorite-saved]")) {
         toggleFavorite(id); updateFavoriteButton(); renderSavedDecks();
     } else if (event.target.closest("[data-remove-saved]")) {
         removeDeck(id); if (currentEntryId === id) currentEntryId = null; updateFavoriteButton(); renderSavedDecks();
     }
-});
+}));
 
 document.querySelector("[data-import-file]").addEventListener("change", async event => {
     const file = event.target.files[0]; if (!file) return;
     const status = document.querySelector("[data-data-status]");
     try {
-        const result = importDeckData(await file.text(), new Set(cards.map(card => card.id)));
-        if (result.error) status.textContent = result.error === "invalid_json" ? "The selected file is not valid JSON." : "This is not a supported deck export file.";
-        else status.textContent = `Import complete: ${result.imported} added, ${result.updated} updated, ${result.skipped} skipped.`;
-        renderSavedDecks(); updateFavoriteButton();
+        const payload = await file.text();
+        withDeckStorage(() => {
+            const result = importDeckData(payload, cards);
+            if (result.error) status.textContent = result.error === "invalid_json" ? "The selected file is not valid JSON." : "This is not a supported deck export file.";
+            else status.textContent = `Import complete: ${result.imported} added, ${result.updated} updated, ${result.skipped} skipped.`;
+            renderSavedDecks(); updateFavoriteButton();
+        });
     } catch { status.textContent = "The selected file could not be read."; }
     event.target.value = "";
 });
@@ -259,7 +275,7 @@ document.querySelector("[data-generate-again]").addEventListener("click", () => 
 
 document.querySelector("[data-favorite-current]").addEventListener("click", () => {
     if (!currentEntryId) return;
-    toggleFavorite(currentEntryId); updateFavoriteButton(); renderSavedDecks();
+    withDeckStorage(() => { toggleFavorite(currentEntryId); updateFavoriteButton(); renderSavedDecks(); });
 });
 
 function clearFilters() {
@@ -355,8 +371,10 @@ updatePanelExpansion();
 
 try {
     const response = await fetch("./cards.json"); if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    cards = (await response.json()).items; renderPicker(); contexts.forEach(updateChips); renderSavedDecks(); updateFilterCount(); form.querySelector('button[type="submit"]').disabled = false;
+    cards = (await response.json()).items; renderPicker(); contexts.forEach(updateChips); updateFilterCount(); form.querySelector('button[type="submit"]').disabled = false;
 } catch (error) {
     document.querySelector("[data-pool-status]").textContent = "Card catalog unavailable.";
     const message = document.querySelector("[data-error]"); message.textContent = "Card data could not be loaded. Please refresh the page."; message.hidden = false; form.querySelector('button[type="submit"]').disabled = true;
 }
+// History failures must never be reported as catalog failures or disable generation.
+if (cards.length) { renderSavedDecks(); updateFavoriteButton(); }

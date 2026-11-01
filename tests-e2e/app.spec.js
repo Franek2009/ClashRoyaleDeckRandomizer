@@ -299,3 +299,114 @@ test("native validation reveals invalid fields inside closed panels", async ({pa
     await expect(page.getByRole('button',{name:'Filters',exact:true})).toHaveAttribute('aria-expanded','true');
     await expect(page.locator('[data-deck] .card')).toHaveCount(0);
 });
+
+test("invalid imported dates cannot poison startup after reload", async ({page}) => {
+    await generateDeck(page);
+    const payload = await page.evaluate(() => {
+        const key = 'clash-royale-randomizer.decks.v1';
+        const [entry] = JSON.parse(localStorage.getItem(key));
+        localStorage.removeItem(key);
+        return {format:'clash-royale-deck-randomizer', version:1, decks:[{...entry, createdAt:1e100}]};
+    });
+    await page.reload();
+    await expect(page.getByRole('button', {name:'Generate Deck', exact:true})).toBeEnabled();
+    await page.getByRole('link', {name:'Saved decks'}).click();
+    await page.locator('[data-import-file]').setInputFiles({name:'bad-date.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify(payload))});
+    await expect(page.locator('[data-data-status]')).toHaveText('Import complete: 0 added, 0 updated, 1 skipped.');
+    await page.reload();
+    await expect(page.locator('[data-error]')).toBeHidden();
+    await generateDeck(page);
+});
+
+test("invalid persisted entries leave valid favorites intact across reloads", async ({page}) => {
+    await generateDeck(page);
+    await page.locator('[data-favorite-current]').click();
+    const raw = await page.evaluate(() => {
+        const key = 'clash-royale-randomizer.decks.v1';
+        const [entry] = JSON.parse(localStorage.getItem(key));
+        const raw = JSON.stringify([entry, {...entry, id:'bad-date', createdAt:1e100},
+            {...entry, id:'bad-forms', activeForms:Array(8).fill('champion')}]);
+        localStorage.setItem(key, raw);
+        return raw;
+    });
+    for (let reload = 0; reload < 2; reload++) {
+        await page.reload();
+        await expect(page.getByRole('button', {name:'Generate Deck', exact:true})).toBeEnabled();
+        await page.getByRole('link', {name:'Saved decks'}).click();
+        await expect(page.locator('[data-saved-decks] .saved-deck')).toHaveCount(1);
+        await expect(page.locator('[data-favorite-saved]')).toHaveAttribute('aria-pressed', 'true');
+        expect(await page.evaluate(() => localStorage.getItem('clash-royale-randomizer.decks.v1'))).toBe(raw);
+    }
+    await page.locator('[data-view-saved]').click();
+    await expect(page.locator('[data-deck] .card')).toHaveCount(8);
+    await expect(page.locator('[data-error]')).toBeHidden();
+});
+
+for (const failure of ['getter', 'read']) {
+    test(`storage ${failure} SecurityError does not disable generation`, async ({page}) => {
+        await page.addInitScript(failure => {
+            const denied = () => {throw new DOMException('Storage blocked', 'SecurityError');};
+            if (failure === 'getter') Object.defineProperty(window, 'localStorage', {get:denied});
+            else Storage.prototype.getItem = denied;
+        }, failure);
+        await page.reload();
+        await expect(page.locator('[data-storage-warning]')).toBeVisible();
+        await expect(page.locator('[data-error]')).toBeHidden();
+        await expect(page.locator('[data-pool-status]')).not.toContainText('unavailable');
+        await generateDeck(page);
+        await expect(page.locator('[data-favorite-current]')).toBeDisabled();
+        await page.getByRole('button', {name:'Generate again', exact:true}).click();
+        await expect(page.locator('[data-deck] .card')).toHaveCount(8);
+        await page.getByRole('link', {name:'Saved decks'}).click();
+        await page.locator('[data-export-decks]').click();
+        await expect(page.locator('[data-data-status]')).toContainText('operation was not completed');
+        await expect(page.locator('[data-data-status]')).not.toContainText('exported');
+    });
+}
+
+test("quota errors preserve existing decks and never report a successful import", async ({page}) => {
+    await generateDeck(page);
+    const raw = await page.evaluate(() => localStorage.getItem('clash-royale-randomizer.decks.v1'));
+    await page.addInitScript(() => {
+        Storage.prototype.setItem = () => {throw new DOMException('Storage full', 'QuotaExceededError');};
+    });
+    await page.reload();
+    await generateDeck(page);
+    await expect(page.locator('[data-storage-warning]')).toBeVisible();
+    await expect(page.locator('[data-error]')).toBeHidden();
+    await expect(page.locator('[data-favorite-current]')).toBeDisabled();
+    await page.getByRole('link', {name:'Saved decks'}).click();
+    await expect(page.locator('[data-saved-decks] .saved-deck')).toHaveCount(1);
+    const payload = {format:'clash-royale-deck-randomizer', version:1, decks:JSON.parse(raw).map(deck => ({...deck, favorite:true}))};
+    await page.locator('[data-import-file]').setInputFiles({name:'favorite.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify(payload))});
+    await expect(page.locator('[data-data-status]')).toContainText('operation was not completed');
+    expect(await page.evaluate(() => localStorage.getItem('clash-royale-randomizer.decks.v1'))).toBe(raw);
+    await page.locator('[data-favorite-saved]').click();
+    await expect(page.locator('[data-favorite-saved]')).toHaveAttribute('aria-pressed', 'false');
+    await page.locator('[data-clear-history]').click();
+    await expect(page.locator('[data-saved-decks] .saved-deck')).toHaveCount(1);
+    await page.reload();
+    await generateDeck(page);
+    await expect(page.locator('[data-storage-warning]')).toBeVisible();
+});
+
+test("impossible imported forms are skipped without changing valid history", async ({page}) => {
+    await generateDeck(page);
+    const raw = await page.evaluate(() => localStorage.getItem('clash-royale-randomizer.decks.v1'));
+    const [entry] = JSON.parse(raw);
+    const payload = {format:'clash-royale-deck-randomizer', version:1, decks:[{...entry, activeForms:Array(8).fill('champion')}]};
+    await page.getByRole('link', {name:'Saved decks'}).click();
+    await page.locator('[data-import-file]').setInputFiles({name:'bad-forms.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify(payload))});
+    await expect(page.locator('[data-data-status]')).toHaveText('Import complete: 0 added, 0 updated, 1 skipped.');
+    expect(await page.evaluate(() => localStorage.getItem('clash-royale-randomizer.decks.v1'))).toBe(raw);
+});
+
+test("an unreadable storage container is preserved while generation remains usable", async ({page}) => {
+    await page.evaluate(() => localStorage.setItem('clash-royale-randomizer.decks.v1', 'not json'));
+    await page.reload();
+    await expect(page.locator('[data-storage-warning]')).toBeVisible();
+    await expect(page.locator('[data-error]')).toBeHidden();
+    await generateDeck(page);
+    expect(await page.evaluate(() => localStorage.getItem('clash-royale-randomizer.decks.v1'))).toBe('not json');
+    await expect(page.locator('[data-favorite-current]')).toBeDisabled();
+});
