@@ -204,6 +204,12 @@ after the Pages deployment is verified.
 Developer API `/v1/cards` response. Artwork fields point to Supercell-hosted
 `api-assets.clashroyale.com` URLs, so artwork still requires network access.
 
+For a local, noninteractive catalog check with systemd credentials, see
+[Card catalog checker setup and review](docs/card-catalog-checker.md).
+`python3 scripts/update_cards.py --check` writes validated candidates and diffs
+to the user state directory; it never updates `cards.json` or publishes changes.
+The existing preview and explicitly confirmed `--apply` modes remain available.
+
 The MIT license applies only to original repository code. It does not cover
 card data, names, artwork, trademarks, or other Supercell materials. This is an
 unofficial fan-made project and is not affiliated with, sponsored by, or

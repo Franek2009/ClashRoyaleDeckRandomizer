@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Clash Royale card catalog daily at 18:00
+
+[Timer]
+OnCalendar=*-*-* 18:00:00
+Persistent=true
+Unit=crdr-cards.service
+
+[Install]
+WantedBy=timers.target

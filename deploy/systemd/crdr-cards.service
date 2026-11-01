@@ -1,0 +1,13 @@
+[Unit]
+Description=Check official Clash Royale card catalog (no publication)
+
+[Service]
+Type=oneshot
+LoadCredential=crdr-api:%h/.config/crdr/api-token
+UnsetEnvironment=CLASH_ROYALE_API_TOKEN
+WorkingDirectory=%h/Projects/Python/ClashRoyaleDeckRandomizer
+ExecStart=/usr/bin/python3 %h/Projects/Python/ClashRoyaleDeckRandomizer/scripts/update_cards.py --check
+UMask=0077
+TimeoutStartSec=90
+StandardOutput=journal
+StandardError=journal
