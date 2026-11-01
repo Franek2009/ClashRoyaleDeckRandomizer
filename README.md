@@ -122,9 +122,17 @@ system fonts. No webfont is loaded; earlier font files and their licenses remain
 in the repository but are inactive. Appearance may vary slightly with locally
 available system fonts.
 
-The header reserves a neutral square “Logo” placeholder for a future user-provided
-mark (48px on desktop, 24px on mobile). It is decorative and hidden from assistive
-technology. Generate Deck is a flat blue, text-only button with no dice icon.
+The header uses the author's approved project logo at 48px on desktop and 32px
+on mobile, preserving its proportions. It has an empty alt because the full app
+name is alongside it. The exact PNG export also supplies the favicon. The source
+SVG still depends on Lilita One, so PNG is used until the author approves an
+outlined SVG. Crown-source attribution is not yet established; see the
+[logo asset audit](static/assets/README.md#project-authors-approved-logo).
+Generate Deck is a flat blue, text-only button with no dice icon.
+
+Current logo previews: [desktop 1440px](docs/ui/logo-desktop.png) and
+[mobile 390px](docs/ui/logo-mobile.png). The earlier generator screenshots below
+precede logo integration.
 
 - Desktop: rules occupy about 32% and the card pool 68%; the deck appears below.
 - Below 1024px: a single column, rules initially collapsed and the pool expanded.

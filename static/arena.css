@@ -42,7 +42,7 @@
     /* Header and workspace */
     & .topbar { max-width: 1240px; min-height: 120px; margin: 12px auto 0; display: flex; align-items: center; gap: 20px; padding: 12px 20px; border: 2px solid #d4e7f4; border-radius: 8px 8px 0 0; background: linear-gradient(90deg, #0d2949ef, #0d2949a8 38%, #0d29491a 75%), url('./assets/fortress-banner.webp') center 52% / cover; color: white; }
     & .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    & .logo-placeholder { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border: 1px dashed #a8bacb; border-radius: 4px; background: #ffffff12; color: #dce6ef; font-size: 11px; }
+    & .brand-logo { display: block; width: 48px; height: 48px; flex-shrink: 0; object-fit: contain; }
     & .brand h1 { font-size: 26px; max-width: 360px; }
     & .nav-links { display: flex; align-items: center; gap: 8px; margin-left: auto; align-self: end; }
     & .nav-links a { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 18px; border: 1px solid #876436; border-radius: 5px; white-space: nowrap; background: #f4e2c3; color: #2b1e0f; font: 700 16px 'Trebuchet MS', Verdana, Arial, sans-serif; }
@@ -240,9 +240,9 @@
         & .nav-links a { padding: 8px 12px; }
     }
     @media (max-width: 540px) {
-        & .topbar { min-height: 80px; max-height: 80px; margin: 8px 8px 0; padding: 4px 10px; flex-direction: column; align-items: stretch; gap: 2px; }
+        & .topbar { min-height: 80px; margin: 8px 8px 0; padding: 4px 10px; flex-direction: column; align-items: stretch; gap: 2px; }
         & .brand { gap: 6px; }
-        & .logo-placeholder { width: 24px; height: 24px; font-size: 8px; }
+        & .brand-logo { width: 32px; height: 32px; }
         & .brand h1 { font-size: 17px; max-width: none; }
         & .nav-links { margin-left: 0; align-self: stretch; gap: 6px; }
         & .nav-links a { flex: 1; font-size: 16px; padding: 6px; }
