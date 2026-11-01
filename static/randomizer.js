@@ -148,6 +148,9 @@ function validateConstraints(cards, constraints) {
         if (value != null && (!Number.isFinite(value) || value <= 0)) throw new ConstraintError("invalid average", "invalid_average");
     if (constraints.minAverageElixir != null && constraints.maxAverageElixir != null && constraints.minAverageElixir > constraints.maxAverageElixir)
         throw new ConstraintError("minimum exceeds maximum", "average_min_greater_than_max");
+    const [minimumTotal, maximumTotal] = bounds(constraints);
+    if (minimumTotal != null && maximumTotal != null && minimumTotal > maximumTotal)
+        throw new ConstraintError("range contains no integer deck total", "constraints_not_feasible");
     if (constraints.spellCount != null && constraints.buildingCount != null && constraints.spellCount + constraints.buildingCount > 8)
         throw new ConstraintError("type counts exceed deck", "type_counts_exceed_deck_size");
 
@@ -180,18 +183,73 @@ function allowedForSlot(card, role, constraints) {
     return !isChampion(card);
 }
 
+// Exact min/max sums for k cards in each suffix. Infinity means insufficient cards.
+function suffixCostBounds(candidates, needed, type = null) {
+    const minimum = Array.from({length: candidates.length + 1}, () => Array(needed + 1).fill(Infinity));
+    const maximum = Array.from({length: candidates.length + 1}, () => Array(needed + 1).fill(-Infinity));
+    for (let index = candidates.length; index >= 0; index--) {
+        minimum[index][0] = maximum[index][0] = 0;
+        if (index === candidates.length) continue;
+        const card = candidates[index], cost = elixirCostForAverage(card);
+        for (let count = 1; count <= needed; count++) {
+            minimum[index][count] = minimum[index + 1][count];
+            maximum[index][count] = maximum[index + 1][count];
+            if (type == null || cardType(card) === type) {
+                minimum[index][count] = Math.min(minimum[index][count], cost + minimum[index + 1][count - 1]);
+                maximum[index][count] = Math.max(maximum[index][count], cost + maximum[index + 1][count - 1]);
+            }
+        }
+    }
+    return {minimum, maximum};
+}
+
+// Optimistic bounds while special slots are still unassigned. Required/Locked
+// cards count once. Allowing extra Champions here is a relaxation, so it cannot
+// reject a feasible deck; actual slot restrictions remain in allowedForSlot.
+function completionPruner(eligible, constraints) {
+    const [minimum, maximum] = bounds(constraints);
+    const byId = new Map(eligible.map(card => [card.id, card]));
+    const required = [...constraints.requiredIds].map(id => byId.get(id));
+    const typed = new Map(eligible.map(card => [card.id, cardType(card)]));
+    const sorted = [...eligible].sort((a, b) => elixirCostForAverage(a) - elixirCostForAverage(b));
+    const pools = Object.fromEntries(TYPES.map(type => [type, sorted.filter(card => typed.get(card.id) === type)]));
+    return function canComplete(selected, target) {
+        const fixed = new Map(required.map(card => [card.id, card]));
+        for (const card of selected) fixed.set(card.id, card);
+        if (fixed.size > 8) return false;
+        if (!target && minimum == null && maximum == null) return true;
+        let low = 0, high = 0;
+        const total = sum([...fixed.values()].map(elixirCostForAverage));
+        const groups = target ? TYPES : [null];
+        for (const type of groups) {
+            const pool = type == null ? sorted : pools[type];
+            const already = type == null ? fixed.size : [...fixed.values()].filter(card => typed.get(card.id) === type).length;
+            const needed = (type == null ? 8 : target[type]) - already;
+            if (needed < 0 || pool.length - already < needed) return false;
+            if (minimum == null && maximum == null) continue;
+            let count = 0;
+            for (let index = 0; count < needed; index++)
+                if (!fixed.has(pool[index].id)) { low += elixirCostForAverage(pool[index]); count++; }
+            count = 0;
+            for (let index = pool.length - 1; count < needed; index--)
+                if (!fixed.has(pool[index].id)) { high += elixirCostForAverage(pool[index]); count++; }
+        }
+        return (maximum == null || total + low <= maximum) && (minimum == null || total + high >= minimum);
+    };
+}
+
 function chooseFillers(candidates, needed, chosenTotal, range) {
     shuffle(candidates);
     const [minimum, maximum] = range;
+    const costs = suffixCostBounds(candidates, needed);
     const failed = new Set();
     function search(index, remaining, total, selected) {
         const key = `${index}|${remaining}|${total}`;
         if (failed.has(key)) return null;
         if (!remaining) return (minimum == null || total >= minimum) && (maximum == null || total <= maximum) ? [...selected] : null;
         if (candidates.length - index < remaining) return null;
-        const costs = candidates.slice(index).map(elixirCostForAverage).sort((a, b) => a - b);
-        if ((maximum != null && total + sum(costs.slice(0, remaining)) > maximum) ||
-            (minimum != null && total + sum(costs.slice(-remaining)) < minimum)) return null;
+        if ((maximum != null && total + costs.minimum[index][remaining] > maximum) ||
+            (minimum != null && total + costs.maximum[index][remaining] < minimum)) return null;
         const card = candidates[index];
         let result = search(index + 1, remaining - 1, total + elixirCostForAverage(card), [...selected, card]);
         if (result) return result;
@@ -225,7 +283,20 @@ function completeDeck(eligible, slots, constraints, target = null) {
         // Type counts reduce the search space; recurse across a shuffled union.
         candidates = shuffle(candidates);
         const [minimum, maximum] = bounds(constraints);
+        const costs = Object.fromEntries(TYPES.map(type => [type, suffixCostBounds(candidates, needed[type], type)]));
+        const failed = new Set();
         function search(index, remaining, total) {
+            const key = `${index}|${TYPES.map(type => remaining[type]).join(",")}|${total}`;
+            if (failed.has(key)) return null;
+            let low = 0, high = 0;
+            for (const type of TYPES) {
+                low += costs[type].minimum[index][remaining[type]];
+                high += costs[type].maximum[index][remaining[type]];
+            }
+            if (low === Infinity || (maximum != null && total + low > maximum) ||
+                (minimum != null && total + high < minimum)) {
+                failed.add(key); return null;
+            }
             if (!Object.values(remaining).some(Boolean))
                 return (minimum == null || total >= minimum) && (maximum == null || total <= maximum) ? [...selected] : null;
             if (index >= candidates.length) return null;
@@ -236,7 +307,9 @@ function completeDeck(eligible, slots, constraints, target = null) {
                 if (found) return found;
                 selected.pop(); remaining[type]++;
             }
-            return search(index + 1, remaining, total);
+            const found = search(index + 1, remaining, total);
+            if (!found) failed.add(key);
+            return found;
         }
         fillers = search(0, {...needed}, sum([...slots, ...required].map(elixirCostForAverage)));
     } else {
@@ -261,11 +334,16 @@ function completeDeck(eligible, slots, constraints, target = null) {
 }
 
 function resolveDeck(eligible, constraints) {
+    const canComplete = completionPruner(eligible, constraints);
+    if (!canComplete([], null)) return null;
+    const lockedPositions = new Map(constraints.lockedIds.flatMap((id, index) => id == null ? [] : [[id, index]]));
     const candidates = Object.fromEntries(ROLES.map((role, index) => [role, shuffle(eligible.filter(card =>
         allowedForSlot(card, role, constraints) &&
+        (!lockedPositions.has(card.id) || lockedPositions.get(card.id) === index) &&
         (constraints.lockedIds[index] == null || card.id === constraints.lockedIds[index])
     ))]));
     const chooseSlots = (target, index = 0, selected = []) => {
+        if (!canComplete(selected, target)) return null;
         if (index === ROLES.length) return completeDeck(eligible, selected, constraints, target);
         const used = new Set(selected.map(card => card.id));
         for (const card of candidates[ROLES[index]]) {

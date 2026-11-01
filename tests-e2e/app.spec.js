@@ -433,3 +433,35 @@ test("filtered required Heal Spirit does not consume the single requested Spell"
     await page.locator('[data-analysis] summary').click();
     await expect(page.locator('[data-deck-summary] dt:text-is("Spells") + dd')).toHaveText('1');
 });
+
+test("impossible typed averages promptly show an error and preserve the generated deck", async ({page}, testInfo) => {
+    test.setTimeout(10000);
+    await generateDeck(page);
+    const before = await page.locator('[data-deck] .card').evaluateAll(nodes => nodes.map(node => node.dataset.cardId));
+    await openRules(page);
+    await page.locator('[name="spell_count"]').selectOption('2');
+    for (const [minimum,maximum] of [['0.1','0.2'],['9.9','10']]) {
+        await page.locator('[name="min_average_elixir"]').fill(minimum);
+        await page.locator('[name="max_average_elixir"]').fill(maximum);
+        await page.getByRole('button', {name:'Generate Deck',exact:true}).click();
+        await expect(page.locator('[data-error]')).toContainText('cannot produce a valid deck');
+        expect(await page.locator('[data-deck] .card').evaluateAll(nodes => nodes.map(node => node.dataset.cardId))).toEqual(before);
+    }
+    const timings = await page.evaluate(async () => {
+        const {generateDeck} = await import('./static/randomizer.js');
+        const cards = (await (await fetch('./cards.json')).json()).items;
+        const results = [];
+        for (const [minAverageElixir,maxAverageElixir] of [[0.1,0.2],[9.9,10],[3.125,3.125]]) {
+            const start = performance.now();
+            try {
+                const deck = generateDeck(cards,{spellCount:2,minAverageElixir,maxAverageElixir});
+                results.push({ms:performance.now()-start,success:true,count:deck.length});
+            } catch (error) { results.push({ms:performance.now()-start,success:false,code:error.code}); }
+        }
+        return results;
+    });
+    expect(timings.map(result => result.success)).toEqual([false,false,true]);
+    for (const result of timings) expect(result.ms).toBeLessThan(250);
+    expect(timings[2].count).toBe(8);
+    await testInfo.attach('solver-timings', {body:JSON.stringify(timings),contentType:'application/json'});
+});
