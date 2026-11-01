@@ -322,6 +322,37 @@ cardPool.querySelector("[data-clear-available]").addEventListener("click", () =>
 document.querySelectorAll("[data-count-select]").forEach(select => { for (let value = 0; value <= 8; value++) select.add(new Option(value, value)); });
 document.querySelector("[data-card-filters]").addEventListener("input", updateFilterCount);
 
+// Collapsing changes presentation only; hidden form fields keep their values.
+const compactPanels = matchMedia("(max-width: 1023px)");
+const panelExpansion = {rules: false, pool: true};
+function updatePanelExpansion() {
+    document.querySelectorAll("[data-collapse]").forEach(button => {
+        const expanded = !compactPanels.matches || panelExpansion[button.dataset.collapse];
+        const content = document.getElementById(button.getAttribute("aria-controls"));
+        button.disabled = !compactPanels.matches;
+        // Move focus before hiding a field when crossing into the compact layout.
+        if (!expanded && content.contains(document.activeElement)) button.focus();
+        content.hidden = !expanded;
+        button.setAttribute("aria-expanded", String(expanded));
+    });
+}
+document.querySelectorAll("[data-collapse]").forEach(button => button.addEventListener("click", () => {
+    panelExpansion[button.dataset.collapse] = !panelExpansion[button.dataset.collapse];
+    updatePanelExpansion();
+}));
+// Native form validation must be able to focus a field inside a collapsed panel.
+form.addEventListener("invalid", event => {
+    if (event.target.closest("#rules-content")) panelExpansion.rules = true;
+    if (event.target.closest("#pool-content")) panelExpansion.pool = true;
+    if (event.target.closest("#card-filters")) {
+        document.querySelector("#card-filters").hidden = false;
+        document.querySelector("[data-toggle-filters]").setAttribute("aria-expanded", "true");
+    }
+    updatePanelExpansion();
+}, true);
+compactPanels.addEventListener("change", updatePanelExpansion);
+updatePanelExpansion();
+
 try {
     const response = await fetch("./cards.json"); if (!response.ok) throw new Error(`HTTP ${response.status}`);
     cards = (await response.json()).items; renderPicker(); contexts.forEach(updateChips); renderSavedDecks(); updateFilterCount(); form.querySelector('button[type="submit"]').disabled = false;

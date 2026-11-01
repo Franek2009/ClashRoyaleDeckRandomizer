@@ -72,8 +72,8 @@ ClashRoyaleDeckRandomizer/
 │   └── release.yml
 ├── static/
 │   ├── arena.css             # browser UI; style.css is retained for Flask
-│   ├── assets/                # original generated arena and emblem
-│   ├── fonts/                 # locally hosted Barlow fonts and OFL license
+│   ├── assets/                # UI artwork, paper texture, and provenance
+│   ├── fonts/                 # retained inactive fonts and their licenses
 │   ├── app.js
 │   ├── card-filter.js
 │   ├── deck-analysis.js
@@ -111,33 +111,45 @@ add slogans, hero descriptions, promotional claims, feature showcases, or
 redundant helper text. Explain mechanics only when needed; preserve errors,
 accessibility labels, and the fan-content notice.
 
-The interface uses flat dark navy surfaces, thin borders, blue primary actions,
-a small original emblem, locally hosted Barlow fonts, and CSS/SVG controls.
-Decorative arena artwork remains in the repository but is not loaded by the UI.
-The existing generator and local deck storage format are preserved. The retained Flask template continues to use `static/style.css`;
-the static application uses `static/arena.css`, scoped to `.arena-app`.
+The retro fan-site interface uses warm paper panels, blue section bars, and a
+small original fortress illustration confined to the header. The page background
+is solid navy. `static/arena.css` is scoped to `.arena-app`; the retained Flask
+interface continues to use `static/style.css`.
 
-- Desktop: a 380px rules column beside the larger card pool, with the deck below.
-  Smaller screens stack the panels; at 390px the picker has three columns and
-  the generated deck has four columns in two rows. Both navigation links remain
-  available on mobile.
-- The catalog shows 12 cards per page. Search covers the entire catalog and only
-  changes the visible cards; advanced filters constrain deck generation.
-- All is read-only. Available, Banned, and Required edit the corresponding pools;
-  Available supports all cards or a custom selection. Selections survive paging.
-- Analysis and history are collapsible. Eight empty slots are visible before the
-  first generation as compact placeholders. Invalid configurations preserve the
-  previous result. Locks sit below the card artwork with 44px touch targets.
-- Pool selections use different symbols as well as borders: available ✓, banned
-  ×, required !. Slot names and lock states remain explicitly labeled.
+Headings, navigation, and primary actions use **Trebuchet MS Bold**, with Verdana,
+Arial, and sans-serif fallbacks. Body copy and card names retain regular-weight
+system fonts. No webfont is loaded; earlier font files and their licenses remain
+in the repository but are inactive. Appearance may vary slightly with locally
+available system fonts.
 
-Screenshots at 1440px desktop and 390px mobile, captured with actual loaded
-card artwork (the automated functional tests block external artwork):
+The header reserves a neutral square “Logo” placeholder for a future user-provided
+mark (48px on desktop, 24px on mobile). It is decorative and hidden from assistive
+technology. Generate Deck is a flat blue, text-only button with no dice icon.
+
+- Desktop: rules occupy about 32% and the card pool 68%; the deck appears below.
+- Below 1024px: a single column, rules initially collapsed and the pool expanded.
+  Both panels can be toggled, while Generate Deck stays accessible. Closing a
+  panel does not disable its fields or discard their values. Native validation
+  reopens panels and filters when an invalid field needs focus. Desktop always
+  shows both panels; returning to mobile restores that tab's expansion choices.
+- The catalog has 12 cards per page, six columns on desktop and three on compact
+  screens. Search covers the entire catalog; advanced filters constrain generation.
+- All is read-only. Available, Banned, and Required edit their respective pools.
+  Available supports all cards or a custom selection. Selection symbols remain
+  distinct: available ✓, banned ×, required !.
+- The result has eight cards on desktop and a 4×2 grid on compact screens, with
+  explicit slot labels and 44px lock buttons. Analysis and history remain
+  collapsible, and invalid configurations preserve the previous result.
+- The generator, Mirror average policy, deck links, and local storage format are
+  unchanged. There are no additional controls inferred from the visual mockups.
+
+Screenshots captured with loaded card artwork (functional tests block external
+artwork). The mobile previews use the initial collapsed-rules layout:
 
 | View | Before generation | Generated deck |
 | --- | --- | --- |
-| Desktop | [Empty](docs/ui/desktop-empty.png) | [Result](docs/ui/desktop.png) |
-| Mobile | [Empty](docs/ui/mobile-empty.png) | [Result](docs/ui/mobile.png) |
+| Desktop 1440px | [Empty](docs/ui/desktop-empty.png) | [Result](docs/ui/desktop.png) |
+| Mobile 390px | [Empty](docs/ui/mobile-empty.png) | [Result](docs/ui/mobile.png) |
 
 Original artwork provenance is documented in
 [asset provenance and generation prompts](static/assets/README.md).

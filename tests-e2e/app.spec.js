@@ -13,6 +13,11 @@ test.afterEach(async ({page}) => {
     expect(browserErrors.get(page)).toEqual([]);
 });
 
+async function openRules(page) {
+    const button = page.getByRole("button", {name:"Deck Rules", exact:true});
+    if (await button.isEnabled() && await button.getAttribute("aria-expanded") === "false") await button.click();
+}
+
 async function generateDeck(page) {
     await page.getByRole("button", {name: "Generate Deck"}).click();
     await expect(page.locator("[data-deck] .card")).toHaveCount(8);
@@ -25,6 +30,7 @@ test("generates a deck and preserves the official game-link format", async ({pag
 });
 
 test("filters can be cleared and all settings reset", async ({page}) => {
+    await openRules(page);
     await page.getByRole("button", {name: "Filters", exact: true}).click();
     await page.getByLabel("Exclude Champions").check();
     await expect(page.locator("[data-filter-count]")).not.toHaveText("All");
@@ -166,6 +172,7 @@ test("keyboard users can select cards and expand analysis", async ({page}) => {
 });
 
 test("elixir steppers preserve decimal increments and reset to optional", async ({page}) => {
+    await openRules(page);
     const input = page.getByRole('spinbutton', {name:'Deck average elixir — minimum',exact:true});
     await input.fill('2');
     await page.getByRole('button', {name:'Increase minimum average Elixir',exact:true}).click();
@@ -203,6 +210,7 @@ test("pool states have distinct non-color markers", async ({page}) => {
 
 test("mobile controls remain readable with touch-sized actions", async ({page}) => {
     await page.setViewportSize({width:390, height:844});
+    await openRules(page);
     await expect(page.getByRole("link", {name:"Generator",exact:true})).toBeVisible();
     await expect(page.getByRole("link", {name:"Saved decks",exact:true})).toBeVisible();
     expect(await page.locator('[data-card-picker]').evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length)).toBe(3);
@@ -217,4 +225,77 @@ test("mobile controls remain readable with touch-sized actions", async ({page}) 
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
     }
+});
+
+
+test("compact panels preserve values and allow generation while collapsed", async ({page}) => {
+    for (const width of [390,768]) {
+        await page.setViewportSize({width,height:900});
+        await expect(page.locator('#rules-content')).toBeHidden();
+        await expect(page.locator('#pool-content')).toBeVisible();
+        await expect(page.getByRole('button',{name:'Generate Deck',exact:true})).toBeVisible();
+    }
+    await openRules(page);
+    await page.locator('[name="min_average_elixir"]').fill('2.5');
+    await page.getByRole('button',{name:'Deck Rules',exact:true}).click();
+    await page.getByRole('button',{name:'Card Pool',exact:true}).click();
+    await expect(page.locator('#pool-content')).toBeHidden();
+    await generateDeck(page);
+    await page.setViewportSize({width:1440,height:1000});
+    await expect(page.locator('#rules-content')).toBeVisible();
+    await expect(page.locator('#pool-content')).toBeVisible();
+    await expect(page.locator('[name="min_average_elixir"]')).toHaveValue('2.5');
+    await page.setViewportSize({width:390,height:844});
+    await expect(page.locator('#rules-content')).toBeHidden();
+    await expect(page.locator('#pool-content')).toBeHidden();
+    await openRules(page);
+    await expect(page.locator('[name="min_average_elixir"]')).toHaveValue('2.5');
+});
+
+test("all three Wild Slot modes keep their original mechanics", async ({page}) => {
+    await openRules(page);
+    const wild=page.getByRole('group',{name:'Wild Slot',exact:true});
+    for (const [name,forms] of [['Off',['normal']],['Evolution',['evolution']],['Hero / Champion',['hero','champion']]]) {
+        await wild.getByRole('radio',{name,exact:true}).check();
+        await generateDeck(page);
+        expect(forms).toContain(await page.locator('[data-deck] [data-slot-role="wild"]').getAttribute('data-active-form'));
+    }
+});
+
+test("banned and required selections affect generation", async ({page}) => {
+    await page.locator('[data-picker-context="banned"]').click();
+    const banned=page.locator('[data-picker-card]:visible').first();
+    const bannedId=await banned.getAttribute('data-card-id');
+    await banned.getByRole('checkbox').check();
+    await page.locator('[data-picker-context="required"]').click();
+    const required=page.locator('[data-picker-card]:visible').nth(1);
+    const requiredId=await required.getAttribute('data-card-id');
+    await required.getByRole('checkbox').check();
+    await generateDeck(page);
+    await expect(page.locator(`[data-deck] [data-card-id="${bannedId}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-deck] [data-card-id="${requiredId}"]`)).toHaveCount(1);
+});
+
+
+test("native validation reveals invalid fields inside closed panels", async ({page}) => {
+    await page.setViewportSize({width:390,height:844});
+    await openRules(page);
+    const minimum=page.locator('[name="min_average_elixir"]');
+    await minimum.fill('-1');
+    await page.getByRole('button',{name:'Deck Rules',exact:true}).click();
+    await page.getByRole('button',{name:'Generate Deck',exact:true}).click();
+    await expect(page.locator('#rules-content')).toBeVisible();
+    await expect(minimum).toBeFocused();
+    await minimum.fill('');
+    await page.getByRole('button',{name:'Filters',exact:true}).click();
+    const cardMinimum=page.getByLabel('Minimum Elixir',{exact:true});
+    await cardMinimum.fill('0');
+    await page.getByRole('button',{name:'Filters',exact:true}).click();
+    await page.getByRole('button',{name:'Card Pool',exact:true}).click();
+    await page.getByRole('button',{name:'Generate Deck',exact:true}).click();
+    await expect(page.locator('#pool-content')).toBeVisible();
+    await expect(page.locator('#card-filters')).toBeVisible();
+    await expect(cardMinimum).toBeFocused();
+    await expect(page.getByRole('button',{name:'Filters',exact:true})).toHaveAttribute('aria-expanded','true');
+    await expect(page.locator('[data-deck] .card')).toHaveCount(0);
 });
