@@ -76,15 +76,29 @@ and favicon are included by the existing GitHub Pages packaging workflow.
 The supplied 512px PNG is used as-is for the favicon; tiny text can be difficult
 to read at 32px. A simplified icon can be supplied by the author later.
 
-### Crown rights and attribution: unresolved
+### Crown source, CC0 declaration, and voluntary attribution
 
-No source URL, creator credit, license name, license terms, or required
-attribution was included with `assets/42217.svg`. Its metadata says only
-“Created by potrace 1.15, written by Peter Selinger 2001-2017”; that identifies
-tracing software and does not establish the crown's creator or license.
+Asset: `static/assets/42217.svg` (preserved source: `assets/42217.svg`).
+The project author incorporated this third-party crown into the approved logo.
 
-The author needs to supply the original source URL, the creator/rightsholder,
-the license name and link or permission terms, and the exact required credit
-(including modification notices if required). Add the verified attribution here
-once supplied. No license or ownership is inferred from the filename, the
-tracing-tool metadata, or the general fan-content disclaimer.
+- SVG source: [SVG Silh — image 42217](https://svgsilh.com/image/42217.html).
+- Original image: [Pixabay — crown, gold, golden, queen, nobility, 42217](https://pixabay.com/en/crown-gold-golden-queen-nobility-42217/).
+- Original contributor: **Clker-Free-Vector-Images**.
+- Public-domain dedication: [Creative Commons CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
+
+SVG Silh declares its SVGs released under CC0 and states that they were derived
+from Pixabay images downloaded under CC0 before Pixabay changed its license.
+This records SVG Silh's CC0 declaration and historical provenance; it does not
+rely on the current Pixabay Content License as evidence of the earlier terms.
+Source and contributor information were checked on 2026-11-01.
+
+**Attribution is voluntary, not required under CC0.** We retain this credit for
+provenance:
+
+> Crown by Clker-Free-Vector-Images, originally on Pixabay; SVG from SVG Silh,
+> image 42217, released under CC0 1.0 Universal. Incorporated into the project
+> author's CRDR logo.
+
+The CC0 declaration above concerns the crown asset, not a dedication of the
+entire CRDR logo. The author's original logo files and crown source are
+preserved without modification.
