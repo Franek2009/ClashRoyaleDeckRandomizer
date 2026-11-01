@@ -209,6 +209,11 @@ For a local, noninteractive catalog check with systemd credentials, see
 `python3 scripts/update_cards.py --check` writes validated candidates and diffs
 to the user state directory; it never updates `cards.json` or publishes changes.
 The existing preview and explicitly confirmed `--apply` modes remain available.
+An optional `--sync` mode validates/tests in an isolated clone and can publish a
+cards-only commit; `--sync --dry-run` performs the gates without committing or
+pushing. Activation requires the Heal Spirit R2 fix, repository-scoped SSH
+authentication and a separately approved change of the installed user service.
+The supplied check timer is not switched automatically.
 
 The MIT license applies only to original repository code. It does not cover
 card data, names, artwork, trademarks, or other Supercell materials. This is an

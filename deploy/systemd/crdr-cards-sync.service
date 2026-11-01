@@ -1,0 +1,14 @@
+[Unit]
+Description=Synchronize and publish validated Clash Royale catalog
+
+[Service]
+Type=oneshot
+LoadCredential=crdr-api:%h/.config/crdr/api-token
+UnsetEnvironment=CLASH_ROYALE_API_TOKEN GH_TOKEN GITHUB_TOKEN
+WorkingDirectory=%h/Projects/Python/ClashRoyaleDeckRandomizer
+ExecStart=/usr/bin/python3 %h/Projects/Python/ClashRoyaleDeckRandomizer/scripts/update_cards.py --sync --notify
+UMask=0077
+TimeoutStartSec=30min
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal

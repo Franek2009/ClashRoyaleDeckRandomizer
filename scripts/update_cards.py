@@ -348,15 +348,37 @@ def parse_args():
         help="allow replacement after an interactive confirmation",
     )
     modes.add_argument("--check", action="store_true", help="noninteractive check; write reports outside the repository")
-    parser.add_argument("--notify", action="store_true", help="optionally notify once per detected change (requires --check)")
+    modes.add_argument("--sync", action="store_true", help="validate and test in an isolated clone, then commit/push cards.json only")
+    parser.add_argument("--dry-run", action="store_true", help="with --sync: validate and test without a commit or push")
+    parser.add_argument("--notify", action="store_true", help="notify once per check change or sync outcome")
     args = parser.parse_args()
-    if args.notify and not args.check:
-        parser.error("--notify requires --check")
+    if args.notify and not (args.check or args.sync):
+        parser.error("--notify requires --check or --sync")
+    if args.dry_run and not args.sync:
+        parser.error("--dry-run requires --sync")
     return args
 
 
 def main():
     args = parse_args()
+    if args.sync:
+        if __package__:
+            from .sync_cards import synchronize
+        else:
+            from sync_cards import synchronize
+
+        def fetch_candidate():
+            token = read_token()
+            candidate = fetch_snapshot(token)
+            if token in json.dumps(candidate, ensure_ascii=False):
+                raise UpdateError("unexpected credential content in snapshot; nothing written")
+            validate_snapshot(candidate)
+            return candidate
+
+        result = synchronize(fetch_candidate, notify=args.notify, dry_run=args.dry_run)
+        if result["status"] == "blocked":
+            raise UpdateError(f'catalog sync blocked at {result["reason"]}; see sync/result.json')
+        return
     token = read_token()
 
     with CARDS_PATH.open(encoding="utf-8") as source:
