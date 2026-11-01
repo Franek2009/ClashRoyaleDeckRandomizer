@@ -47,11 +47,14 @@ npx playwright install chromium --with-deps
 npm run test:e2e
 ```
 
-The retained Flask implementation has its original Python test suite:
+The Python suite covers the retained Flask implementation, catalog updater and
+JavaScript/Python integration. It also requires Node.js 22+ on PATH; npm packages
+are not required by those Python integration tests:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
+# fish: source .venv/bin/activate.fish
 pip install -r requirements-dev.txt
 python -m pytest -q
 ```
@@ -82,7 +85,7 @@ ClashRoyaleDeckRandomizer/
 │   └── style.css
 ├── tests-js/
 │   └── randomizer.test.js
-├── tests/                  # retained Flask tests
+├── tests/                  # Flask, updater and cross-language regressions
 ├── cards.json
 ├── index.html
 ├── package.json
@@ -151,13 +154,14 @@ The header uses the author's approved project logo at 48px on desktop and 32px
 on mobile, preserving its proportions. It has an empty alt because the full app
 name is alongside it. The exact PNG export also supplies the favicon. The source
 SVG still depends on Lilita One, so PNG is used until the author approves an
-outlined SVG. Crown-source attribution is not yet established; see the
-[logo asset audit](static/assets/README.md#project-authors-approved-logo).
+outlined SVG. The incorporated crown is by Clker-Free-Vector-Images, distributed
+by SVG Silh under CC0 1.0 Universal; attribution is voluntary. See
+[crown provenance](static/assets/README.md#crown-source-cc0-declaration-and-voluntary-attribution).
 Generate Deck is a flat blue, text-only button with no dice icon.
 
-Current logo previews: [desktop 1440px](docs/ui/logo-desktop.png) and
-[mobile 390px](docs/ui/logo-mobile.png). The earlier generator screenshots below
-precede logo integration.
+Current interface screenshots below include the author's logo and the 123-card
+snapshot. Additional regression views: [320px pagination](docs/ui/responsive-320.png),
+[768px](docs/ui/responsive-768.png) and [1024px Wild Slot](docs/ui/responsive-1024.png).
 
 - Desktop: rules occupy about 32% and the card pool 68%; the deck appears below.
 - Below 1024px: a single column, rules initially collapsed and the pool expanded.
@@ -173,8 +177,8 @@ precede logo integration.
 - The result has eight cards on desktop and a 4×2 grid on compact screens, with
   explicit slot labels and 44px lock buttons. Analysis and history remain
   collapsible, and invalid configurations preserve the previous result.
-- The generator, Mirror average policy, deck links, and local storage format are
-  unchanged. There are no additional controls inferred from the visual mockups.
+- The physical-slot rules, Mirror average policy, deck links and local storage
+  format remain consistent across layouts.
 
 Screenshots captured with loaded card artwork (functional tests block external
 artwork). The mobile previews use the initial collapsed-rules layout:
@@ -197,6 +201,21 @@ In the repository settings, set **Pages → Build and deployment → Source** to
 **GitHub Actions** once. The Flask and Render files remain temporarily so the
 old implementation can be compared with the new site. They can be removed
 after the Pages deployment is verified.
+
+## Releasing
+
+[v1.1.0 release notes](docs/releases/v1.1.0.md) describe changes since v1.0.0.
+Commit and publish the intended version to main, wait for successful CI/Pages,
+then create the release tag at that exact commit. No tag/release is created by
+the local updater checker or by these instructions automatically.
+
+The tag-triggered release workflow runs Python and static JS/browser tests, smoke
+tests the static server and verifies that the tag's commit is current main and
+the latest successful Pages deployment. A mismatch blocks publication. It attaches
+a runnable static ZIP, `COMMIT_SHA` inside it, and archive `SHA256SUMS`; release
+notes record the full commit SHA. Check `scripts/verify_release.sh` for the
+read-only gate. If main/deployment advances, select and verify the intended commit
+again; do not bypass the check. Live Pages can continue to advance after a release.
 
 ## Card data and fan content
 
@@ -228,3 +247,5 @@ endorsed by Supercell. Use of those materials remains subject to Supercell's
 - History and favorites belong to one browser and are not synchronized between
   devices.
 - Card artwork depends on external Supercell asset URLs.
+- Deck links contain ordered IDs, not explicit active-form flags. In-game import
+  may require manually selecting a dual-form Wild card's active form.

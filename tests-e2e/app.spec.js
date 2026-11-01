@@ -465,3 +465,35 @@ test("impossible typed averages promptly show an error and preserve the generate
     expect(timings[2].count).toBe(8);
     await testInfo.attach('solver-timings', {body:JSON.stringify(timings),contentType:'application/json'});
 });
+
+test("middle-page pagination and every Wild label fit all supported widths", async ({page}) => {
+    for (let index=0; index<4; index++) await page.getByRole('button',{name:'Next page',exact:true}).click();
+    for (const width of [320,390,768,1024,1440]) {
+        await page.setViewportSize({width,height:1000});
+        await openRules(page);
+        const wild=page.getByRole('group',{name:'Wild Slot',exact:true});
+        for (const name of ['Off','Evolution','Hero / Champion']) {
+            await wild.getByRole('radio',{name,exact:true}).check();
+            for (const span of await wild.locator('.segment-option span').all()) {
+                expect(await span.evaluate(node=>node.scrollWidth<=node.clientWidth && node.scrollHeight<=node.clientHeight)).toBe(true);
+            }
+        }
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+        for (const input of await page.locator('.stepper input').all()) {
+            expect(await input.evaluate(node=>{
+                const style=getComputedStyle(node);
+                return node.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+            })).toBeGreaterThanOrEqual(24);
+        }
+        const pool=await page.locator('[data-card-pool]').boundingBox();
+        for (const button of await page.locator('[data-pagination] button').all()) {
+            const box=await button.boundingBox();
+            expect(box.x).toBeGreaterThanOrEqual(pool.x);
+            expect(box.x+box.width).toBeLessThanOrEqual(pool.x+pool.width);
+            expect(box.width).toBeGreaterThanOrEqual(44);
+            expect(box.height).toBeGreaterThanOrEqual(44);
+        }
+        await expect(page.getByRole('button',{name:'Page 5',exact:true})).toHaveAttribute('aria-current','page');
+        expect(await page.locator('.brand-logo').evaluate(node=>node.complete && node.naturalWidth===512)).toBe(true);
+    }
+});

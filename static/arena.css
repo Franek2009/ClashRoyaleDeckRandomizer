@@ -138,7 +138,7 @@
     & [data-context=required] .selection-mark { background: #715b25; }
     & .elixir-badge { position: absolute; top: 0; left: 0; z-index: 1; display: grid; place-content: center; min-width: 24px; height: 26px; padding: 0 4px; border-radius: 6px; background: #8545a7; color: white; font-size: 14px; font-weight: bold; }
     & .pool-empty { padding: 28px 8px; text-align: center; color: var(--muted); }
-    & .pagination { display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: 12px; }
+    & .pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; margin-top: 12px; }
     & .pagination button { min-width: 44px; padding: 6px; }
     & .page-gap { color: var(--muted); padding: 0 2px; }
     & .generate-area { padding: 0 14px 14px; }
@@ -226,6 +226,10 @@
     & .elixir-badge { background: #9430ae; border-radius: 50%; }
     & .is-locked .lock-button:hover { background: #ead18e; }
     & .picker-card-control input:focus-visible { outline: none; }
+    @media (min-width: 1024px) and (max-width: 1199px) {
+        & fieldset.rule-row:has([name=wild_slot_mode]) legend { float: none; width: 100%; padding: 0 0 6px; }
+        & fieldset.rule-row:has([name=wild_slot_mode]) .segmented-options { margin-left: 0; }
+    }
     @media (max-width: 1023px) {
         & .topbar { max-width: 800px; }
         & .container { max-width: 800px; }
@@ -279,5 +283,8 @@
         & .elixir-field > label, & .constraint-field { font-size: 14px; }
         & .constraint-field input, & .picker-search-field input, & select { font-size: 16px; }
         & .generate-area { padding: 0 10px 10px; }
+    }
+    @media (max-width: 360px) {
+        & .elixir-inputs { grid-template-columns: 1fr; gap: 8px; }
     }
 }

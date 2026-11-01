@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  deployments: read
 
 jobs:
   release:
@@ -15,6 +16,17 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Record release commit
+        id: revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -27,11 +39,6 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-
       - name: Test static application
         run: |
           npm ci
@@ -39,22 +46,51 @@ jobs:
           npx playwright install chromium --with-deps
           npm run test:e2e
 
-      - name: Run production smoke test
+      - name: Run static production smoke test
         run: |
-          gunicorn --bind 127.0.0.1:8000 app:app &
-          gunicorn_pid=$!
-          trap 'kill "$gunicorn_pid"' EXIT
-
+          PORT=8000 node scripts/static-server.js &
+          static_server_pid=$!
+          trap 'kill "$static_server_pid"' EXIT
           curl --fail --silent --show-error \
             --retry 10 --retry-delay 1 --retry-connrefused \
-            http://127.0.0.1:8000/health > /dev/null
-          curl --fail --silent --show-error \
             http://127.0.0.1:8000/ > /dev/null
+          for asset in cards.json static/app.js static/arena.css static/assets/logo.png; do
+            curl --fail --silent --show-error "http://127.0.0.1:8000/$asset" > /dev/null
+          done
+
+      - name: Package static application
+        env:
+          RELEASE_SHA: ${{ steps.revision.outputs.sha }}
+        run: |
+          python - <<'PY'
+          import hashlib, os, shutil
+          from pathlib import Path
+          site = Path("dist/site")
+          site.mkdir(parents=True)
+          for name in ("index.html", "cards.json", "LICENSE"):
+              shutil.copyfile(name, site / name)
+          shutil.copytree("static", site / "static")
+          (site / "COMMIT_SHA").write_text(os.environ["RELEASE_SHA"] + "\n")
+          archive = Path(shutil.make_archive("dist/crdr-" + os.environ["GITHUB_REF_NAME"], "zip", site))
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          Path("dist/SHA256SUMS").write_text(f"{digest}  {archive.name}\n")
+          PY
+
+      - name: Verify release matches main and live Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.revision.outputs.sha }}
+        run: bash scripts/verify_release.sh
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "$GITHUB_REF_NAME"
-          --verify-tag
-          --generate-notes
+          RELEASE_SHA: ${{ steps.revision.outputs.sha }}
+        run: |
+          notes_file="docs/releases/${GITHUB_REF_NAME}.md"
+          test -f "$notes_file"
+          cp "$notes_file" "$RUNNER_TEMP/release-notes.md"
+          printf '\nRelease commit: `%s`\n' "$RELEASE_SHA" >> "$RUNNER_TEMP/release-notes.md"
+          gh release create "$GITHUB_REF_NAME" "dist/crdr-${GITHUB_REF_NAME}.zip" dist/SHA256SUMS \
+            --verify-tag --target "$RELEASE_SHA" --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
