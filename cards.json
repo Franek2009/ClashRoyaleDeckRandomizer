@@ -1177,8 +1177,10 @@
       "name": "Mirror",
       "id": 28000006,
       "maxLevel": 11,
+      "maxEvolutionLevel": 1,
       "iconUrls": {
-        "medium": "https://api-assets.clashroyale.com/cards/300/wC6Cm9rKLEOk72zTsukVwxewKIoO4ZcMJun54zCPWvA.png"
+        "medium": "https://api-assets.clashroyale.com/cards/300/wC6Cm9rKLEOk72zTsukVwxewKIoO4ZcMJun54zCPWvA.png",
+        "evolutionMedium": "https://api-assets.clashroyale.com/cardevolutions/300/wC6Cm9rKLEOk72zTsukVwxewKIoO4ZcMJun54zCPWvA.png"
       },
       "rarity": "epic"
     },
