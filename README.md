@@ -183,10 +183,12 @@ snapshot. Additional regression views: [320px pagination](docs/ui/responsive-320
 Screenshots captured with loaded card artwork (functional tests block external
 artwork). The mobile previews use the initial collapsed-rules layout:
 
+
 | View | Before generation | Generated deck |
 | --- | --- | --- |
 | Desktop 1440px | [Empty](docs/ui/desktop-empty.png) | [Result](docs/ui/desktop.png) |
 | Mobile 390px | [Empty](docs/ui/mobile-empty.png) | [Result](docs/ui/mobile.png) |
+
 
 Original artwork provenance is documented in
 [asset provenance and generation prompts](static/assets/README.md).
